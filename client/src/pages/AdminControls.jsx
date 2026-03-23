@@ -170,7 +170,7 @@ export default function AdminControls() {
         
         <div className="admin-header-flex">
           <div style={{ flex: '1 1 min-content' }}>
-            <h1 className="admin-page-title" style={{ color: 'var(--text-main)', margin: 0, fontWeight: 800, letterSpacing: '0.02em' }}>CONTROL_PANEL</h1>
+            <h1 className="admin-page-title" style={{ color: 'var(  --text-main)', margin: 0, fontWeight: 800, letterSpacing: '0.02em' }}>CONTROL_PANEL</h1>
             <p style={{ color: 'var(--text-mist)', margin: '8px 0 0 0', fontSize: '0.9rem', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <ShieldIcon size={14} /> Advanced User & Operations Management
             </p>
