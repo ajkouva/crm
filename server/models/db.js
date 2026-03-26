@@ -240,6 +240,20 @@ async function initDB() {
   // Add service_area for location-based officer assignment
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS service_area VARCHAR(200) DEFAULT '';`);
 
+  // Add created_at / updated_at for complaints (missing from older DB instances)
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`);
+
+  // Add rating columns
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS rating SMALLINT;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS rating_comment TEXT;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS appeal_reason TEXT;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS resolution_notes TEXT;`);
+
+  // Add email_verified / reset token for users
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(10);`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ;`);
+
   console.log('[DB] Schema ready ✓');
 }
 
