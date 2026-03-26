@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import useAuthStore from '../store/useAuthStore';
 import { useTheme } from '../context/ThemeContext';
 import { GlobeIcon, MoonIcon, SunIcon } from './Icons';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 const IndiaFlag = ({ size = 28 }) => (
   <svg width={size * 1.43} height={size} viewBox="0 0 600 420" style={{ borderRadius: '2px', flexShrink: 0 }}>
@@ -23,13 +25,22 @@ export default function PublicHeader() {
   const { user } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
+  useGSAP(() => {
+    const tl = gsap.timeline({ defaults: { duration: 0.45, ease: 'power3.out' } });
+    tl.from('.ph-header',   { y: -40, opacity: 0 })
+      .from('.ph-flag',     { y: -40, opacity: 0 }, '-=0.25')
+      .from('.ph-title',    { y: -40, opacity: 0 }, '-=0.25')
+      .from('.ph-subtitle', { y: -40, opacity: 0 }, '-=0.25')
+      .from('.ph-nav-link', { y: -40, opacity: 0, stagger: 0.1 }, '-=0.2')
+      .from('.ph-controls', { y: -40, opacity: 0 }, '-=0.2');
+  }, []);
 
   return (
     <>
       {/* Tricolour accent line at very top */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '3px', zIndex: 1001, background: 'linear-gradient(90deg, #FF9933 33%, #fff 33%, #fff 66%, #138808 66%)' }} />
 
-      <header style={{
+      <header className="ph-header" style={{
         position: 'fixed', top: '3px', left: 0, right: 0, zIndex: 1000,
         background: theme === 'dark' ? 'rgba(10,25,47,0.97)' : 'rgba(255,255,255,0.95)',
         backdropFilter: 'blur(20px)',
@@ -40,10 +51,10 @@ export default function PublicHeader() {
       }}>
         {/* Left: Flag + Branding */}
         <Link to={user ? '/dashboard' : '/'} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', flexShrink: 0 }}>
-          <IndiaFlag size={26} />
+          <span className="ph-flag"><IndiaFlag size={26} /></span>
           <div style={{ borderLeft: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`, paddingLeft: '12px' }}>
-            <div style={{ fontSize: '1.05rem', fontWeight: 900, color: theme === 'dark' ? '#fff' : 'var(--navy)', letterSpacing: '0.5px', lineHeight: 1.1 }}>PS-CRM</div>
-            <div className="gov-text" style={{ fontSize: '0.6rem', fontWeight: 700, color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : 'var(--text-mist)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '2px' }}>
+            <div className="ph-title" style={{ fontSize: '1.05rem', fontWeight: 900, color: theme === 'dark' ? '#fff' : 'var(--navy)', letterSpacing: '0.5px', lineHeight: 1.1 }}>PS-CRM</div>
+            <div className="ph-subtitle gov-text" style={{ fontSize: '0.6rem', fontWeight: 700, color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : 'var(--text-mist)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '2px' }}>
               Government of India
             </div>
           </div>
@@ -52,13 +63,13 @@ export default function PublicHeader() {
         {/* Right: Nav + Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <nav className="header-nav-links" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-            <Link to="/about"   style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'var(--text-dim)', textDecoration: 'none', fontWeight: 600, fontSize: '0.78rem', transition: 'color 0.2s' }}>About</Link>
-            <Link to="/process" style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'var(--text-dim)', textDecoration: 'none', fontWeight: 600, fontSize: '0.78rem', transition: 'color 0.2s' }}>Process</Link>
-            <Link to="/faq"     style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'var(--text-dim)', textDecoration: 'none', fontWeight: 600, fontSize: '0.78rem', transition: 'color 0.2s' }}>FAQ</Link>
-            <Link to="/track"   style={{ color: 'var(--saffron)', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>Track</Link>
+            <Link className="ph-nav-link" to="/about"   style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'var(--text-dim)', textDecoration: 'none', fontWeight: 600, fontSize: '0.78rem', transition: 'color 0.2s' }}>About</Link>
+            <Link className="ph-nav-link" to="/process" style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'var(--text-dim)', textDecoration: 'none', fontWeight: 600, fontSize: '0.78rem', transition: 'color 0.2s' }}>Process</Link>
+            <Link className="ph-nav-link" to="/faq"     style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'var(--text-dim)', textDecoration: 'none', fontWeight: 600, fontSize: '0.78rem', transition: 'color 0.2s' }}>FAQ</Link>
+            <Link className="ph-nav-link" to="/track"   style={{ color: 'var(--saffron)', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>Track</Link>
           </nav>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="ph-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               className="lang-toggle"
               onClick={() => {

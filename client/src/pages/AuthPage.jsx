@@ -141,7 +141,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="auth-page fade-up">
+    <div className="auth-page">
       {/* Left Panel: Brand & Info */}
       <div className="auth-left">
         {/* Background Accent */}
@@ -187,7 +187,7 @@ export default function AuthPage() {
 
       {/* Right Panel: Form */}
       <div className="auth-right">
-        <div className="card fade-up" style={{ padding: '48px 40px', width: '100%', maxWidth: '440px', background: 'var(--bg-card)', border: '1px solid rgba(255,255,255,0.05)', boxShadow: 'var(--shadow-ambient)', borderRadius: '24px' }}>
+        <div className="card" style={{ width: '100%', maxWidth: '440px', background: 'var(--bg-card)', border: '1px solid rgba(255,255,255,0.05)', boxShadow: 'var(--shadow-ambient)', borderRadius: '24px' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <h2 style={{ fontSize: '2rem', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
               {mode === 'login' ? 'Sign In' : 'Create Account'}
@@ -293,16 +293,12 @@ export default function AuthPage() {
 
           {/* ── Forgot Password Panel ── */}
           {fpMode && (
-            <div style={{
-              position: 'fixed', inset: 0, zIndex: 999,
-              background: 'rgba(0,11,31,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '20px', backdropFilter: 'blur(12px)'
+            <div className="fade-up" style={{
+              position: 'absolute', inset: 0, zIndex: 20,
+              background: 'var(--bg-card)', overflowY: 'auto',
+              padding: '48px 40px', display: 'flex', flexDirection: 'column',
             }}>
-              <div className="card fade-up" style={{
-                background: 'var(--bg-card)', borderRadius: '24px', padding: '48px 40px',
-                width: '100%', maxWidth: '440px', boxShadow: 'var(--shadow-ambient)',
-                border: '1px solid rgba(255,255,255,0.05)'
-              }}>
+              <div style={{ width: '100%', maxWidth: '440px', margin: '0 auto', flex: 1 }}>
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h3 style={{ fontFamily: 'Rajdhani,sans-serif', color: 'var(--text-main)', margin: 0 }}>
@@ -432,16 +428,12 @@ export default function AuthPage() {
 
           {/* ── Email Verification Modal ── */}
           {verifyMode && (
-            <div style={{
-              position: 'fixed', inset: 0, zIndex: 1000,
-              background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '20px'
+            <div className="fade-up" style={{
+              position: 'absolute', inset: 0, zIndex: 20,
+              background: 'var(--bg-card)', overflowY: 'auto',
+              padding: '48px 40px', display: 'flex', flexDirection: 'column',
             }}>
-              <div className="card fade-up" style={{
-                background: 'var(--bg-card)', borderRadius: '24px', padding: '48px 40px',
-                width: '100%', maxWidth: '440px', boxShadow: 'var(--shadow-ambient)',
-                border: '1px solid rgba(255,255,255,0.05)'
-              }}>
+              <div style={{ width: '100%', maxWidth: '440px', margin: '0 auto', flex: 1 }}>
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                   <div style={{
                     width: '64px', height: '64px', background: 'rgba(255,153,51,0.1)',
