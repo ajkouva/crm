@@ -68,11 +68,9 @@ router.post('/register', authLimiter, async (req, res, next) => {
     // Send verification email
     await sendOtpEmail(email, otp, 'register');
 
-    const isDev = process.env.NODE_ENV === 'development';
     res.status(201).json({ 
       success: true,
-      message: 'Registration successful. Please verify your email with the 6-digit OTP sent.',
-      devOtp: isDev ? otp : undefined 
+      message: 'Registration successful. Please verify your email with the 6-digit OTP sent.'
     });
   } catch (err) { next(err); }
 });
@@ -201,11 +199,9 @@ router.post('/resend-verification', authLimiter, async (req, res, next) => {
 
     await sendOtpEmail(email, otp, 'register');
 
-    const isDev = process.env.NODE_ENV === 'development';
     res.json({
       success: true,
-      message: 'Verification code resent.',
-      devOtp: isDev ? otp : undefined
+      message: 'Verification code resent.'
     });
   } catch (err) { next(err); }
 });
@@ -241,11 +237,9 @@ router.post('/forgot-password', authLimiter, async (req, res, next) => {
     // Send OTP email
     await sendOtpEmail(email, otp, 'reset');
 
-    const isDev = process.env.NODE_ENV === 'development';
     res.json({ 
       success: true, 
-      message: 'If that email exists, a reset code was sent.',
-      devOtp: isDev ? otp : undefined
+      message: 'If that email exists, a reset code was sent.'
     });
 
   } catch (err) { next(err); }

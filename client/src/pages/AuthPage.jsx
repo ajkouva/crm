@@ -329,14 +329,7 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                {/* DEV MODE: show OTP code */}
-                {fpDevCode && fpStep === 2 && (
-                  <div style={{ background: 'var(--bg-body)', border: '1px solid var(--saffron)', borderRadius: 'var(--radius)', padding: '12px', marginBottom: '16px' }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--saffron)', textTransform: 'uppercase', marginBottom: '4px' }}>Dev Mode — Your OTP Code</div>
-                    <div style={{ fontSize: '1.8rem', fontWeight: 700, letterSpacing: '8px', color: 'var(--text-main)', fontFamily: 'monospace' }}>{fpDevCode}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-mist)', marginTop: '4px' }}>Also visible in server console logs • expires in 15 min</div>
-                  </div>
-                )}
+
 
                 {fpStep === 1 ? (
                   <form onSubmit={sendResetCode} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -468,14 +461,7 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                {/* DEV MODE: show OTP code */}
-                {verifyDevCode && (
-                  <div style={{ background: 'var(--bg-body)', border: '1px solid var(--saffron)', borderRadius: 'var(--radius)', padding: '16px', marginBottom: '24px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--saffron)', textTransform: 'uppercase', marginBottom: '8px' }}>Dev Mode — Verification Code</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '12px', color: 'var(--text-main)', fontFamily: 'monospace' }}>{verifyDevCode}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-mist)', marginTop: '8px' }}>Normally sent to your email</div>
-                  </div>
-                )}
+
 
                 <form onSubmit={submitVerify} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
