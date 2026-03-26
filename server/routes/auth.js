@@ -32,7 +32,7 @@ function safeUser(u) {
 // POST /api/auth/register
 router.post('/register', authLimiter, async (req, res, next) => {
   try {
-    let { name, email, password, role = 'citizen', phone, departmentId } = req.body;
+    let { name, email, password, role = 'citizen', phone, departmentId, serviceArea } = req.body;
 
     name  = (name  || '').trim().slice(0, 100);
     email = (email || '').trim().toLowerCase().slice(0, 254);
@@ -51,14 +51,19 @@ router.post('/register', authLimiter, async (req, res, next) => {
     const otpHashed = await bcrypt.hash(otp, 10);
     const otpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
+    const { rows: existing } = await query(`SELECT id, email_verified FROM users WHERE email = $1`, [email]);
+    if (existing.length > 0) {
+      if (existing[0].email_verified) {
+        return res.status(409).json({ error: 'Email already registered' });
+      }
+      // If unverified, remove it so we can re-register with fresh OTP/data
+      await query(`DELETE FROM users WHERE id = $1`, [existing[0].id]);
+    }
+
     const { rows } = await query(`
-      INSERT INTO users (name, email, phone, password_hash, role, department_id, active, email_verified, reset_token, reset_token_expires)
-      VALUES ($1,$2,$3,$4,$5,$6,FALSE,FALSE,$7,$8) RETURNING *
-    `, [name, email, (phone || '').slice(0,20), hash, role, departmentId || null, otpHashed, otpExpiry])
-      .catch(e => {
-        if (e.code === '23505') throw Object.assign(new Error('Email already registered'), { status: 409 });
-        throw e;
-      });
+      INSERT INTO users (name, email, phone, password_hash, role, department_id, service_area, active, email_verified, reset_token, reset_token_expires)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE,FALSE,$8,$9) RETURNING *
+    `, [name, email, (phone || '').slice(0,20), hash, role, departmentId || null, (serviceArea || '').trim().slice(0, 200), otpHashed, otpExpiry]);
 
     // Send verification email
     await sendOtpEmail(email, otp, 'register');
@@ -94,7 +99,7 @@ router.post('/login', authLimiter, async (req, res, next) => {
                        : await bcrypt.compare(password, dummy);
 
     if (!user || !match) {
-      console.log(`[AUTH] Invalid credentials for: ${email} (User found: !!user, Match: ${match})`);
+      console.log(`[AUTH] Invalid credentials for: ${email} (User found: ${!!user}, Match: ${match})`);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS users (
                 CHECK (role IN ('citizen','field_officer','dept_head','collector','super_admin')),
   department_id VARCHAR(10)  REFERENCES departments(id) ON DELETE SET NULL,
   aadhaar       VARCHAR(12),
+  service_area  VARCHAR(200) DEFAULT '',
   active        BOOLEAN      NOT NULL DEFAULT FALSE,
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -90,8 +91,9 @@ CREATE TABLE IF NOT EXISTS complaints (
   sla_deadline      TIMESTAMPTZ,
   resolved_at       TIMESTAMPTZ,
   escalated_at      TIMESTAMPTZ,
-  created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  ai_summary        TEXT,
+  translated_description TEXT
 );
 
 -- Status history (replaces the embedded history array)
@@ -230,6 +232,14 @@ async function initDB() {
 
   await pool.query(TRIGGER);
   await pool.query(SEED_DEPARTMENTS);
+
+  // F4: AI Translation & Summary support
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS ai_summary TEXT;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS translated_description TEXT;`);
+
+  // Add service_area for location-based officer assignment
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS service_area VARCHAR(200) DEFAULT '';`);
+
   console.log('[DB] Schema ready ✓');
 }
 

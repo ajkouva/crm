@@ -119,3 +119,13 @@ export const MoonIcon = (props) => (
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
   </IconBase>
 );
+export const GlobeIcon = (props) => (
+  <IconBase {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a14.5 14.5 0 0 0 0 20" />
+    <path d="M12 2a14.5 14.5 0 0 1 0 20" />
+    <path d="M2 12h20" />
+  </IconBase>
+);
+
+

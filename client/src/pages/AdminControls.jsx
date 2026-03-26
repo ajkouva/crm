@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../utils/api';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/useAuthStore';
 import CustomSelect from '../components/CustomSelect';
 
 const ROLE_BADGE = {
@@ -20,11 +20,12 @@ const DownloadIcon = ({ size=16, color="currentColor" }) => <svg xmlns="http://w
 const CheckIcon = ({ size=16, color="currentColor" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
 export default function AdminControls() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   const [activeTab, setActiveTab] = useState('users');
 
@@ -60,18 +61,26 @@ export default function AdminControls() {
     } catch (e) { setError('Error updating user: ' + e.message); }
   };
 
-  const handleBulkApprove = async () => {
+  const handleBulkApprove = () => {
     if (selectedUsers.size === 0) return;
-    if (!window.confirm(`Are you sure you want to approve ${selectedUsers.size} users?`)) return;
-    try {
-      setLoading(true);
-      const promises = Array.from(selectedUsers).map(id => api.adminUpdateUser(id, { active: true }));
-      await Promise.all(promises);
-      loadData();
-    } catch (e) { 
-      setError('Error approving users. Some may have failed.'); 
-      loadData();
-    }
+    setConfirmDialog({
+      title: 'Bulk Approval',
+      message: `Are you sure you want to approve ${selectedUsers.size} users?`,
+      confirmText: 'Approve',
+      confirmColor: 'var(--green-india)',
+      onConfirm: async () => {
+        try {
+          setConfirmDialog(null);
+          setLoading(true);
+          const promises = Array.from(selectedUsers).map(id => api.adminUpdateUser(id, { active: true }));
+          await Promise.all(promises);
+          loadData();
+        } catch (e) { 
+          setError('Error approving users. Some may have failed.'); 
+          loadData();
+        }
+      }
+    });
   };
 
   const toggleSelectUser = (id) => {
@@ -100,12 +109,20 @@ export default function AdminControls() {
     } catch (e) { setError('Error saving department: ' + e.message); }
   };
 
-  const deleteDept = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this department?')) return;
-    try {
-      await api.adminDeleteDept(id);
-      loadData();
-    } catch (e) { setError('Error deleting department: ' + e.message); }
+  const deleteDept = (id) => {
+    setConfirmDialog({
+      title: 'Delete Department',
+      message: 'Are you sure you want to delete this department? This action is permanent.',
+      confirmText: 'Delete',
+      confirmColor: 'var(--red)',
+      onConfirm: async () => {
+        try {
+          setConfirmDialog(null);
+          await api.adminDeleteDept(id);
+          loadData();
+        } catch (e) { setError('Error deleting department: ' + e.message); }
+      }
+    });
   };
 
   const startEditDept = (d) => {
@@ -545,6 +562,25 @@ export default function AdminControls() {
           </div>
         )}
 
+        {/* Custom Confirmation Modal Overlay */}
+        {confirmDialog && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,11,31,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', animation: 'slideFadeIn 0.3s ease' }}>
+            <div className="card fade-up" style={{ maxWidth: '440px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', border: '1px solid rgba(255,255,255,0.1)', background: 'var(--bg-card)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: confirmDialog.confirmColor === 'var(--red)' ? 'var(--red-dim)' : 'var(--green-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: confirmDialog.confirmColor }}>
+                  <ShieldIcon size={20} />
+                </div>
+                <h3 style={{ fontFamily: 'Rajdhani,sans-serif', fontSize: '1.5rem', color: 'var(--text-main)', margin: 0 }}>{confirmDialog.title || 'Confirm Action'}</h3>
+              </div>
+              <p style={{ color: 'var(--text-dim)', fontSize: '0.95rem', lineHeight: 1.5, margin: 0, paddingLeft: '4px' }}>{confirmDialog.message}</p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button className="btn btn-ghost" onClick={() => setConfirmDialog(null)} style={{ border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '10px 20px' }}>Cancel</button>
+                <button className="btn" onClick={confirmDialog.onConfirm} style={{ background: confirmDialog.confirmColor || 'var(--saffron)', color: '#fff', padding: '10px 24px', border: 'none' }}>{confirmDialog.confirmText || 'Confirm'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <style>{`
           .admin-header-container { padding: 32px 24px; }
           .admin-page-body { padding: 32px 40px; }
@@ -633,3 +669,5 @@ export default function AdminControls() {
     </div>
   );
 }
+
+

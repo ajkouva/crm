@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
-
+import { Skeleton, EmptyState } from '../components/Skeleton';
 import React from 'react';
 
 const TYPE_CONFIG = {
@@ -91,17 +91,19 @@ export default function Notifications({ onRead }) {
       <div className="page-body">
         <div className="card" style={{ maxWidth: '720px' }}>
           {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-mist)' }}>Loading…</div>
-          ) : notifs.length === 0 ? (
-            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-mist)' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--bg-card-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
+                  <Skeleton width="42px" height="42px" style={{ borderRadius: '50%', flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <Skeleton width="70%" height="14px" />
+                    <Skeleton width="40%" height="10px" />
+                  </div>
                 </div>
-              </div>
-              <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text-main)', fontSize: '1.1rem' }}>No notifications yet</div>
-              <div style={{ fontSize: '0.9rem' }}>You'll be notified when something needs your attention.</div>
+              ))}
             </div>
+          ) : notifs.length === 0 ? (
+            <EmptyState icon="🔔" title="No notifications yet" subtitle="You'll be notified when something needs your attention." />
           ) : notifs.map(n => {
             const config = TYPE_CONFIG[n.type] || TYPE_CONFIG.default;
             return (
@@ -143,3 +145,5 @@ export default function Notifications({ onRead }) {
     </div>
   );
 }
+
+

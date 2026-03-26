@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/useAuthStore';
 import { useTheme } from '../context/ThemeContext';
 import { SunIcon, MoonIcon } from '../components/Icons';
 import CustomSelect from '../components/CustomSelect';
@@ -19,7 +19,7 @@ const IndiaFlag = () => (
 );
 
 export default function TransparencyDashboard() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
   const { t } = useTranslation();
   const [complaints, setComplaints] = useState([]);
@@ -192,3 +192,5 @@ export default function TransparencyDashboard() {
     </div>
   );
 }
+
+

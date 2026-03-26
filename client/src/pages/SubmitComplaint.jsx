@@ -98,16 +98,39 @@ export default function SubmitComplaint() {
         setError('Please fill in title and description');
         return;
       }
+      if (form.description.trim().length < 10) {
+        setError('Description is too short (minimum 10 characters)');
+        return;
+      }
+
       setError(''); setAnalyzing(true);
       try {
         const analysis = await api.analyzeComplaint(form.description);
+        
+        if (analysis.isGibberish) {
+          setError(analysis.error || 'Your description is too short or unclear. Please provide more details.');
+          setAnalyzing(false);
+          return;
+        }
+
         setAiAnalysis(analysis);
         if (analysis.categories && analysis.categories.length > 0) {
           setForm(f => ({ ...f, category: analysis.categories[0].department }));
+        } else {
+          setForm(f => ({ ...f, category: 'General' }));
         }
         setStep(1);
       } catch (e) {
-        setStep(1); // fallback
+        const msg = e.response?.data?.error || e.message;
+        // e.status is now available thanks to our api.js update
+        if (e.status === 422 || e.response?.status === 422) {
+          setError(msg);
+          // Stay on Step 0 if it's a validation/gibberish error
+        } else {
+          console.warn('AI Analysis failed, falling back to manual', e);
+          setAiAnalysis({ categories: [], method: 'fallback-manual' });
+          setStep(1); 
+        }
       } finally {
         setAnalyzing(false);
       }
@@ -137,7 +160,8 @@ export default function SubmitComplaint() {
       const res = await api.createComplaint(fd);
       navigate(`/complaints/${res.id}?submitted=1`);
     } catch (e) {
-      setError(e.message);
+      const msg = e.response?.data?.error || e.message;
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -241,8 +265,40 @@ export default function SubmitComplaint() {
                   <label style={s.label}>Location / Ward</label>
                   <input className="input" placeholder="e.g. Rohini Sector 7, Ward 12" value={form.location} onChange={update('location')} />
                   <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <button type="button" onClick={captureLocation} style={{ background: 'var(--snow)', border: '1px solid var(--fog)', padding: '6px 12px', borderRadius: '4px', fontSize: '0.8rem', color: 'var(--navy)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      📍 Detect my location
+                    <button 
+                      type="button" 
+                      onClick={captureLocation} 
+                      className="btn-location-detect"
+                      style={{ 
+                        background: 'rgba(255,153,51,0.05)', 
+                        border: '1px solid var(--border-color)', 
+                        padding: '10px 20px', 
+                        borderRadius: '12px', 
+                        fontSize: '0.9rem', 
+                        color: 'var(--saffron)', 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px',
+                        transition: 'all 0.3s ease',
+                        fontWeight: 700,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                      }}
+                      onMouseEnter={e => { 
+                        e.currentTarget.style.background = 'rgba(255,153,51,0.15)'; 
+                        e.currentTarget.style.borderColor = 'var(--saffron)'; 
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,153,51,0.2)';
+                      }}
+                      onMouseLeave={e => { 
+                        e.currentTarget.style.background = 'rgba(255,153,51,0.05)'; 
+                        e.currentTarget.style.borderColor = 'var(--border-color)'; 
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+                      }}
+                    >
+                      <span style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>📍</span> 
+                      Detect my location
                     </button>
                     {form.lat && <span style={{ fontSize: '0.75rem', color: 'var(--green-india)', fontWeight: 600 }}>✓ Coordinates captured</span>}
                   </div>
@@ -318,7 +374,7 @@ export default function SubmitComplaint() {
 const s = {
   stepper:{display:'flex',alignItems:'center',justifyContent:'center',gap:'0',marginBottom:'32px'},
   stepItem:{display:'flex',alignItems:'center',gap:'8px',flex:1,maxWidth:'200px'},
-  stepDot:{width:'28px',height:'28px',borderRadius:'50%',background:'var(--bg-card)',color:'var(--text-mist)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:'0.8rem',flexShrink:0,border:'1px solid var(--border-color)'},
+  stepDot:{width:'28px',height:'28px',borderRadius:'50%',background:'var(--bg-card)',color:'var(--text-mist)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:'0.8rem',flexShrink:0,borderWidth:'1px',borderStyle:'solid',borderColor:'var(--border-color)'},
   stepActive:{background:'var(--saffron)',color:'#fff',borderColor:'var(--saffron)'},
   stepDone:{background:'var(--green-india)',color:'#fff',borderColor:'var(--green-india)'},
   stepLabel:{fontSize:'0.8rem',fontWeight:500,whiteSpace:'nowrap'},
@@ -337,3 +393,5 @@ const s = {
   aiBox:{background:'var(--bg-card)',border:'1px solid var(--green-india)',borderRadius:'var(--radius)',padding:'10px 14px',fontSize:'0.85rem',color:'var(--green-india)',marginBottom:'16px'},
   error:{background:'rgba(192,57,43,0.1)',border:'1px solid rgba(192,57,43,0.3)',color:'var(--red)',padding:'9px 13px',borderRadius:'var(--radius)',fontSize:'0.85rem'},
 };
+
+

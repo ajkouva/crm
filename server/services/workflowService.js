@@ -51,22 +51,31 @@ function getSLAStatus(complaint) {
  * Returns the assigned officer row, or null if none available.
  * Updates officer_load atomically inside a transaction.
  */
-async function autoAssignOfficer(complaintId, departmentId, priority) {
+async function autoAssignOfficer(complaintId, departmentId, priority, complaintLocation = '') {
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
-    // Find all active officers in the department with their current load
+    // Build a location-aware weighted score:
+    //  - active_count * 10         → fewer active complaints = better
+    //  - hours_since_last_assigned → older = better (tie-breaker)
+    //  - location_bonus: -50 if officer's service_area matches the complaint location
+    const locationPattern = `%${(complaintLocation || '').toLowerCase()}%`;
+
     const { rows: candidates } = await client.query(`
       SELECT
         u.id,
         u.name,
         u.email,
+        u.service_area,
         COALESCE(ol.active_count, 0)   AS active_count,
         COALESCE(ol.last_assigned, '1970-01-01') AS last_assigned,
-        -- Weighted score: fewer active = better; older last_assigned = better
         (COALESCE(ol.active_count, 0) * 10)
           + EXTRACT(EPOCH FROM (NOW() - COALESCE(ol.last_assigned, '1970-01-01'))) / -3600.0
+          - CASE
+              WHEN $2 <> '' AND LOWER(u.service_area) LIKE $2 THEN 50
+              ELSE 0
+            END
         AS score
       FROM users u
       LEFT JOIN officer_load ol ON ol.officer_id = u.id
@@ -76,7 +85,7 @@ async function autoAssignOfficer(complaintId, departmentId, priority) {
       ORDER BY score ASC
       LIMIT 1
       FOR UPDATE OF u SKIP LOCKED
-    `, [departmentId]);
+    `, [departmentId, locationPattern]);
 
     if (!candidates.length) {
       await client.query('ROLLBACK');
@@ -98,6 +107,8 @@ async function autoAssignOfficer(complaintId, departmentId, priority) {
     }
 
     const officer = candidates[0];
+    const isLocalMatch = complaintLocation && officer.service_area &&
+      officer.service_area.toLowerCase().includes(complaintLocation.toLowerCase());
 
     // Upsert officer_load — increment active count, update last_assigned
     await client.query(`
@@ -118,13 +129,14 @@ async function autoAssignOfficer(complaintId, departmentId, priority) {
     `, [officer.id, complaintId]);
 
     // Record in history
+    const locationNote = isLocalMatch ? ` (local match: ${officer.service_area})` : '';
     await client.query(`
       INSERT INTO complaint_history (complaint_id, status, user_id, note)
       VALUES ($1, 'assigned', 'system', $2)
-    `, [complaintId, `Auto-assigned to ${officer.name} (${officer.active_count} active complaints)`]);
+    `, [complaintId, `Auto-assigned to ${officer.name} (${officer.active_count} active complaints)${locationNote}`]);
 
     await client.query('COMMIT');
-    console.log(`[Assignment] Complaint ${complaintId} → Officer ${officer.name} (load: ${parseInt(officer.active_count) + 1})`);
+    console.log(`[Assignment] Complaint ${complaintId} → Officer ${officer.name} (load: ${parseInt(officer.active_count) + 1})${locationNote}`);
     return officer;
   } catch (err) {
     await client.query('ROLLBACK');

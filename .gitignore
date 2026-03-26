@@ -1,18 +1,53 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
+
+# ── Build output ──────────────────────────────────────────────────────────────
 dist/
 build/
+
+# ── Environment files ─────────────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
+
+# ── Uploaded media (user-submitted files) ────────────────────────────────────
+server/uploads/*
+!server/uploads/.gitkeep
+
+# ── OS & Editor junk ──────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.idea/
-.vscode/
-coverage/
-*.pem
+pnpm-debug.log*
+logs/
 
-# Agent artifacts
-.agent
+# ── Keys & Certs ──────────────────────────────────────────────────────────────
+*.pem
+*.key
+*.cert
+
+# ── Coverage & Test output ────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── Vite cache ────────────────────────────────────────────────────────────────
+client/.vite/
+.vite/
+
+# ── Agent/AI config (not needed for the repo) ────────────────────────────────
+.agent/
+.agents/
 .code-review-graph
+skills-lock.json
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.pem
+*.local

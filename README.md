@@ -1,123 +1,223 @@
-# PS-CRM — Public Service Complaint Management System
+# 🇮🇳 PS-CRM — Smart Public Service Complaint Management System
 
-A full-stack web application for managing citizen complaints with AI-powered classification,
-smart auto-assignment, SLA tracking, and real-time notifications.
+> A full-stack, production-ready complaint management platform for Indian government services — featuring real-time notifications, AI-powered classification, auto officer assignment, SLA enforcement, duplicate detection, and a premium animated UI.
 
-## Stack
+![Tech Stack](https://img.shields.io/badge/React_18_+_Vite-blue?logo=react) ![Node.js](https://img.shields.io/badge/Node.js_+_Express-green?logo=node.js) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql) ![GSAP](https://img.shields.io/badge/GSAP_Animations-88CE02?logo=greensock) ![Gemini AI](https://img.shields.io/badge/Gemini_AI-4285F4?logo=google)
 
-| Layer    | Technology                                      |
-|----------|-------------------------------------------------|
-| Frontend | React 18 + Vite, Recharts, Socket.io-client     |
-| Backend  | Node.js + Express, Socket.io, node-cron         |
-| Database | PostgreSQL (via `pg` Pool)                      |
-| AI       | Anthropic Claude API (with keyword fallback)    |
-| Auth     | JWT (7-day tokens) + bcrypt (12 rounds)         |
+---
 
-## Project Structure
+## ✨ Features
+
+### 👤 Citizen Features
+- **Complaint Filing** — Submit complaints with title, description, category, location (manual or GPS), and media uploads (photos/videos up to 50MB)
+- **Live Ticket Tracking** — Public tracking page with full status history
+- **OTP Email Verification** — Secure 6-digit code registration flow
+- **Multilingual Support** — English + Hindi (i18n via react-i18next, 10+ Indian languages structured)
+- **Complaint Rating** — Rate resolution quality (1–5 stars + feedback)
+- **Appeal System** — Re-open resolved complaints if unsatisfied
+- **Transparency Dashboard** — Real-time public stats: total filed, resolved, avg resolution time
+
+### 🧑‍💼 Officer & Admin Features
+- **AI Auto-Assignment** — Complaints are automatically routed to the least-loaded officer in the correct department
+- **Role-Based Dashboards** — Different views for Citizen, Field Officer, Dept Head, Collector, Super Admin
+- **Status Workflow** — new → assigned → in_progress → escalated → resolved → closed
+- **Media Evidence** — Officers can upload photos when resolving complaints
+- **Complaint Comments** — Internal communication thread on each complaint
+- **Analytics Dashboard** — Charts for category breakdown, SLA compliance, officer performance (Recharts)
+- **Heatmap** — Leaflet.js geospatial heatmap of complaint hotspots
+- **Admin Controls** — User management, department management, bulk operations
+- **Audit Trail** — Every action logged with timestamp and user
+
+### 🤖 AI Engine
+- **Gemini AI Classification** — Identifies department, urgency, and generates multilingual summaries
+- **Gibberish Detection** — Rejects low-quality or test inputs automatically
+- **AI Duplicate Detection** — Geospatial + semantic matching to prevent duplicate submissions
+- **Auto-Escalation** — P1 complaints with 3+ duplicates automatically escalate
+- **Fallback AI** — Keyword-based classification when Gemini is unavailable
+
+### 🔔 Real-time System
+- **Socket.io** — Live notifications pushed to all relevant users on complaint creation, assignment, and status changes
+- **In-app Notifications** — Unread badge, notification center
+
+### 🔒 Security
+- **JWT Authentication** — 7-day tokens, role-based route guards
+- **bcrypt Password Hashing** — 12 rounds
+- **Email OTP Registration** — Prevents fake accounts
+- **Rate Limiting** — Protects API endpoints from abuse
+- **Input Sanitization** — All user input sanitized server-side
+- **CORS** — Configurable per environment
+
+### ⏱ SLA & Automation
+| Priority | Deadline | Auto-Escalation |
+|---|---|---|
+| P1 (Critical) | 24 hours | ✅ |
+| P2 (Normal) | 72 hours | ✅ |
+| P3 (Low) | 7 days | ✅ |
+
+| Cron | Interval | Purpose |
+|---|---|---|
+| Rebalance unassigned | Every 15 min | Retries complaints with no officer |
+| SLA escalation check | Every 30 min | Auto-escalates breached complaints |
+
+---
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 18, Vite, React Router v6 |
+| **State** | Zustand |
+| **Animations** | GSAP 3 + ScrollTrigger + @gsap/react |
+| **Charts** | Recharts |
+| **Maps** | Leaflet.js + Leaflet.heat |
+| **Realtime** | Socket.io Client |
+| **i18n** | react-i18next |
+| **Backend** | Node.js, Express |
+| **Database** | PostgreSQL (pg Pool) |
+| **Auth** | JWT + bcrypt |
+| **Email** | Nodemailer (Gmail SMTP / STARTTLS) |
+| **AI** | Google Gemini API + Ollama/Llama3.2 fallback |
+| **Cron** | node-cron |
+| **File Uploads** | Multer |
+| **Realtime** | Socket.io Server |
+
+---
+
+## 📁 Project Structure
 
 ```
 ps-crm/
-├── client/                 # React frontend (Vite)
+├── client/                         # React frontend (Vite)
+│   ├── public/                     # Hero images (img1.jpeg … img5.jpeg, mobile1-4.jpeg)
 │   └── src/
-│       ├── pages/          # Dashboard, ComplaintsList, ComplaintDetail, …
-│       ├── components/     # Sidebar
-│       ├── context/        # AuthContext
-│       └── utils/api.js    # Fetch wrapper + snake_case→camelCase converter
-└── server/                 # Express backend
-    ├── models/db.js        # pg Pool + schema bootstrap (initDB)
-    ├── routes/             # auth, complaints, analytics, misc
+│       ├── pages/                  # All route pages
+│       │   ├── PublicHome.jsx      # Landing page with GSAP animations
+│       │   ├── AuthPage.jsx        # Login / Register / OTP / Forgot Password
+│       │   ├── Dashboard.jsx       # Role-aware main dashboard
+│       │   ├── ComplaintsList.jsx  # Filterable complaints table
+│       │   ├── ComplaintDetail.jsx # Full complaint + history + rating + appeal
+│       │   ├── SubmitComplaint.jsx # AI-powered complaint submission form
+│       │   ├── Analytics.jsx       # Charts + heatmap
+│       │   ├── AdminControls.jsx   # User/dept management
+│       │   ├── Notifications.jsx   # Notification center
+│       │   ├── TrackComplaint.jsx  # Public ticket tracker
+│       │   ├── TransparencyDashboard.jsx
+│       │   ├── InfoPages.jsx       # About / FAQ / Process
+│       │   └── PendingApproval.jsx # Pending user screen
+│       ├── components/
+│       │   ├── Sidebar.jsx         # Collapsible role-aware nav
+│       │   ├── PublicHeader.jsx    # Public nav with theme + language switcher
+│       │   ├── CustomSelect.jsx    # Accessible dropdown
+│       │   ├── GlobalLoader.jsx    # App-level loading spinner
+│       │   ├── Skeleton.jsx        # Content skeleton loaders
+│       │   ├── HeatmapWidget.jsx   # Leaflet heatmap
+│       │   └── Icons.jsx           # SVG icon library
+│       ├── context/
+│       │   ├── AuthContext.jsx     # Auth state (used by crm component)
+│       │   └── ThemeContext.jsx    # Light/Dark mode
+│       ├── store/
+│       │   └── useAuthStore.js     # Zustand auth store
+│       ├── utils/api.js            # API fetch wrapper
+│       └── i18n.js                 # i18next config
+│
+└── server/                         # Express backend
+    ├── index.js                    # App entry, Socket.io, cron init
+    ├── models/db.js                # pg Pool + schema bootstrap (initDB)
+    ├── routes/
+    │   ├── auth.js                 # Register, Login, OTP verify, Forgot PW
+    │   ├── complaints.js           # Full CRUD + assign + rate + appeal
+    │   ├── analytics.js            # Charts + public stats
+    │   └── misc.js                 # Departments, notifications, uploads
     ├── services/
-    │   ├── workflowService.js    # Auto-assignment engine + SLA cron
-    │   ├── notificationService.js
-    │   └── aiService.js          # Claude API + keyword fallback
-    ├── middleware/         # auth (JWT), audit log
-    └── seed.js             # Demo data
+    │   ├── workflowService.js      # Auto-assignment + SLA + cron logic
+    │   ├── notificationService.js  # In-app + Socket.io notifications
+    │   └── aiService.js            # Gemini AI + fallback classifier
+    ├── middleware/
+    │   ├── auth.js                 # JWT verification + requireRole
+    │   ├── audit.js                # Action audit logger
+    │   └── rateLimiter.js          # IP-based rate limiting
+    ├── utils/mailer.js             # Nodemailer SMTP config
+    ├── seed.js                     # Demo data seeder
+    └── flush.js                    # Clear complaint data (keep users)
 ```
 
-## Quick Start
+---
 
-### 1. PostgreSQL
+## 🚀 Quick Start
 
-Create a database:
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+
+
+### 1. Clone & install
+
 ```bash
-createdb pscrm
+git clone https://github.com/your-username/ps-crm.git
+cd ps-crm
+
+# Install server deps
+cd server && npm install
+
+# Install client deps
+cd ../client && npm install
 ```
 
-### 2. Server
+### 2. Configure environment
 
 ```bash
 cd server
 cp .env.example .env
-# Edit .env — set DATABASE_URL, JWT_SECRET, optionally ANTHROPIC_API_KEY
-npm install
-node seed.js        # Creates tables + inserts demo data (run once)
-npm run dev         # nodemon — hot reload
+# Edit .env — fill in DATABASE_URL, JWT_SECRET, GEMINI_API_KEY, EMAIL_*
 ```
 
-The server runs `initDB()` on every start, so schema changes are applied automatically in development.
-
-### 3. Client
+### 3. Set up database
 
 ```bash
-cd client
-npm install
-npm run dev         # http://localhost:5173
+createdb pscrm
+node seed.js     # Creates all tables + inserts demo data
 ```
 
-The Vite dev server proxies `/api` and `/socket.io` to `http://localhost:3001`.
+### 4. Run
 
-## Demo Accounts (all passwords: `password123`)
+```bash
+# Terminal 1 — Backend
+cd server && npm run dev
 
-| Email                  | Role            |
-|------------------------|-----------------|
-| admin@pscrm.in         | Super Admin     |
-| collector@pscrm.in     | Collector       |
-| head.water@pscrm.in    | Dept Head       |
-| ravi@water.in          | Field Officer   |
-| rahul@example.com      | Citizen         |
-
-## Auto-Assignment Engine
-
-When a complaint is submitted:
-
-1. **AI classification** identifies the correct department (falls back to keyword matching if no API key or if the call times out in 6s).
-2. **`autoAssignOfficer()`** queries all active field officers in that department and scores them:
-   - Score = `active_count × 10 − hours_since_last_assigned`
-   - Lowest score wins (fewest open cases, least recently assigned)
-   - Uses `FOR UPDATE SKIP LOCKED` so concurrent submissions never double-assign
-3. The `officer_load` table is updated atomically in the same transaction.
-4. If no officer is available, dept_heads are notified and the complaint stays `new`.
-5. A **cron every 15 minutes** (`rebalanceUnassigned`) retries unassigned complaints in priority order (P1 first).
-6. When a complaint is **resolved/closed**, `decrementOfficerLoad()` keeps the count accurate.
-
-## Cron Jobs
-
-| Schedule     | Job                         | Description                              |
-|--------------|-----------------------------|------------------------------------------|
-| Every 15 min | `rebalanceUnassigned()`     | Retry assignment for officer-less cases  |
-| Every 30 min | `checkAndEscalate()`        | Auto-escalate SLA-breached complaints    |
-
-## SLA Tiers
-
-| Priority | Deadline | Auto-escalation on breach |
-|----------|----------|--------------------------|
-| P1       | 24 hours | ✓                        |
-| P2       | 72 hours | ✓                        |
-| P3       | 7 days   | ✓                        |
-
-## Environment Variables
-
-```
-DATABASE_URL=postgresql://user:pass@localhost:5432/pscrm
-PORT=3001
-JWT_SECRET=long-random-string
-CLIENT_ORIGIN=http://localhost:5173
-ANTHROPIC_API_KEY=optional
+# Terminal 2 — Frontend
+cd client && npm run dev
 ```
 
-## Production Notes
+Frontend: http://localhost:5173  
+API: http://localhost:3001
 
-- Set `NODE_ENV=production` — SSL is enabled on the pg Pool automatically when `DATABASE_URL` is not localhost.
-- Change `JWT_SECRET` to a cryptographically random 64-character string.
-- Set `CLIENT_ORIGIN` to your actual frontend domain for CORS.
-- The rate limiter is in-memory — for multi-instance deployments, replace with Redis-backed rate limiting.
+---
+
+## 🔑 Demo Accounts (password: `password123`)
+
+| Email | Role |
+|---|---|
+| admin@pscrm.in | Super Admin |
+| collector@pscrm.in | Collector |
+| head.water@pscrm.in | Dept Head (Water) |
+| ravi@water.in | Field Officer (Water) |
+| rahul@example.com | Citizen |
+
+---
+
+## 🌐 Deployment
+
+See [DOCUMENTATION.md](./DOCUMENTATION.md) for a full deployment guide (Railway, Render, Vercel, Supabase).
+
+### Key production settings
+1. Set `NODE_ENV=production` in server `.env`
+2. Set `CLIENT_ORIGIN` to your frontend domain
+3. Use a 64-char random `JWT_SECRET`
+4. Use a PostgreSQL managed service (Supabase, Neon, Railway)
+5. Enable Gmail App Password for SMTP
+
+---
+
+## 📄 License
+
+Government of India Initiative — Digital India Programme  
+Built with ❤️ for every Indian citizen.

@@ -34,13 +34,15 @@ async function seed() {
 
   for (const u of users) {
     await query(`
-      INSERT INTO users (name, email, password_hash, role, department_id)
-      VALUES ($1,$2,$3,$4,$5)
+      INSERT INTO users (name, email, password_hash, role, department_id, active, email_verified)
+      VALUES ($1,$2,$3,$4,$5,TRUE,TRUE)
       ON CONFLICT (email) DO UPDATE SET
-        password_hash = EXCLUDED.password_hash,
-        role = EXCLUDED.role,
-        department_id = EXCLUDED.department_id,
-        name = EXCLUDED.name
+        password_hash  = EXCLUDED.password_hash,
+        role           = EXCLUDED.role,
+        department_id  = EXCLUDED.department_id,
+        name           = EXCLUDED.name,
+        active         = TRUE,
+        email_verified = TRUE
     `, [u.name, u.email, hash, u.role, u.dept]);
   }
   console.log('  ✓ Users seeded');

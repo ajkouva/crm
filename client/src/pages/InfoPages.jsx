@@ -1,19 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { SunIcon, MoonIcon } from '../components/Icons';
+import useAuthStore from '../store/useAuthStore';
+import PublicHeader from '../components/PublicHeader';
 
 const PageHero = ({ title, subtitle }) => (
   <div style={{ 
     background: 'linear-gradient(135deg, var(--navy) 0%, #1e3a8a 100%)', 
-    padding: '80px 20px', 
+    padding: '120px 20px 80px', 
     textAlign: 'center',
     color: '#fff',
     borderBottom: '4px solid var(--saffron)'
   }}>
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '3.5rem', marginBottom: '16px', fontFamily: 'Rajdhani, sans-serif' }}>{title}</h1>
+      <h1 style={{ fontSize: '3rem', marginBottom: '16px', fontFamily: 'Rajdhani, sans-serif', fontWeight: 800 }}>{title}</h1>
       <p style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,0.8)', fontWeight: 300 }}>{subtitle}</p>
     </div>
   </div>
@@ -32,49 +31,6 @@ const Section = ({ title, children, dark = false }) => (
   </div>
 );
 
-const Navbar = () => {
-  const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  
-  return (
-    <nav style={{ 
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-      padding: '20px 40px', background: 'var(--bg-card)', 
-      backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100,
-      borderBottom: '1px solid var(--border-color)'
-    }}>
-      <Link to={user ? "/dashboard" : "/"} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <img src="/logo.png" alt="PS-CRM" style={{ height: '32px' }} />
-        <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '1.2rem', letterSpacing: '1px' }}>PS-CRM</span>
-      </Link>
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-        <Link to="/about" style={{ color: 'var(--text-main)', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}>About</Link>
-        <Link to="/process" style={{ color: 'var(--text-main)', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}>Process</Link>
-        <Link to="/faq" style={{ color: 'var(--text-main)', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}>FAQ</Link>
-        
-        <button 
-          onClick={toggleTheme}
-          style={{ 
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '36px', height: '36px', borderRadius: '50%',
-            background: 'var(--bg-body)', color: 'var(--text-main)',
-            border: '1px solid var(--border-color)', transition: 'all 0.2s'
-          }}
-          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-        >
-          {theme === 'light' ? <MoonIcon size={18} /> : <SunIcon size={18} />}
-        </button>
-
-        {user ? (
-          <Link to="/dashboard" style={{ color: 'var(--saffron)', fontWeight: 700, textDecoration: 'none', fontSize: '0.9rem' }}>Dashboard →</Link>
-        ) : (
-          <Link to="/auth" style={{ color: 'var(--saffron)', fontWeight: 700, textDecoration: 'none', fontSize: '0.9rem' }}>Login →</Link>
-        )}
-      </div>
-    </nav>
-  );
-};
-
 const Footer = () => (
   <footer style={{ padding: '60px 20px', background: 'var(--bg-sidebar)', color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -83,50 +39,52 @@ const Footer = () => (
         <Link to="/about" style={{ color: '#fff', textDecoration: 'none' }}>About</Link>
         <Link to="/process" style={{ color: '#fff', textDecoration: 'none' }}>Process</Link>
         <Link to="/faq" style={{ color: '#fff', textDecoration: 'none' }}>FAQ</Link>
-        <Link to="/transparency" style={{ color: '#fff', textDecoration: 'none' }}>Transparency</Link>
       </div>
       <p style={{ fontSize: '0.8rem' }}>© 2026 Smart Public Service CRM • Government of India Initiative</p>
     </div>
   </footer>
 );
 
-export const AboutPage = ({ hideNavbar = false }) => (
-  <div style={{ minHeight: '100vh', background: 'var(--bg-body)' }}>
-    {!hideNavbar && <Navbar />}
-    <PageHero 
-      title="Empowering the Citizen" 
-      subtitle="Modernizing public service through AI-driven transparency and immediate accountability." 
-    />
-    <Section title="Our Mission">
-      <p style={{ lineHeight: 1.8, fontSize: '1.1rem', color: 'var(--text-dim)' }}>
-        Smart Public Service (SPS-CRM) was born from a simple vision: Every citizen deserves a response. 
-        Traditionally, grievance redressal in the public sector has been a slow, opaque process. 
-        We use advanced AI to Bridge the gap between citizens and officials.
-      </p>
-    </Section>
-    <Section title="How we differ" dark>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px' }}>
-        <div>
-          <h3 style={{ color: 'var(--saffron)', marginBottom: '12px' }}>AI Sorting</h3>
-          <p style={{ fontSize: '0.95rem', color: 'var(--mist)' }}>No more "wrong department" excuses. Our AI routes your complaint to the right officer in milliseconds.</p>
+export const AboutPage = ({ hideNavbar = false }) => {
+  const { user } = useAuthStore();
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-body)' }}>
+      {!hideNavbar && <PublicHeader />}
+      <PageHero 
+        title="Empowering the Citizen" 
+        subtitle="Modernizing public service through AI-driven transparency and immediate accountability." 
+      />
+      <Section title="Our Mission">
+        <p style={{ lineHeight: 1.8, fontSize: '1.1rem', color: 'var(--text-dim)' }}>
+          Smart Public Service (SPS-CRM) was born from a simple vision: Every citizen deserves a response. 
+          Traditionally, grievance redressal in the public sector has been a slow, opaque process. 
+          We use advanced AI to bridge the gap between citizens and officials.
+        </p>
+      </Section>
+      <Section title="How we differ" dark>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px' }}>
+          <div>
+            <h3 style={{ color: 'var(--saffron)', marginBottom: '12px' }}>AI Sorting</h3>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-mist)' }}>No more "wrong department" excuses. Our AI routes your complaint to the right officer in milliseconds.</p>
+          </div>
+          <div>
+            <h3 style={{ color: 'var(--saffron)', marginBottom: '12px' }}>Strict SLAs</h3>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-mist)' }}>Every complaint has a ticking clock. If not addressed, it automatically escalates to senior collectors.</p>
+          </div>
+          <div>
+            <h3 style={{ color: 'var(--saffron)', marginBottom: '12px' }}>Public Proof</h3>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-mist)' }}>Our public dashboard shows real-time resolution rates. Data doesn't lie.</p>
+          </div>
         </div>
-        <div>
-          <h3 style={{ color: 'var(--saffron)', marginBottom: '12px' }}>Strict SLAs</h3>
-          <p style={{ fontSize: '0.95rem', color: 'var(--mist)' }}>Every complaint has a ticking clock. If not addressed, it automatically escalates to senior collectors.</p>
-        </div>
-        <div>
-          <h3 style={{ color: 'var(--saffron)', marginBottom: '12px' }}>public Proof</h3>
-          <p style={{ fontSize: '0.95rem', color: 'var(--text-mist)' }}>Our public dashboard shows real-time resolution rates. Data doesn't lie.</p>
-        </div>
-      </div>
-    </Section>
-    <Footer />
-  </div>
-);
+      </Section>
+      <Footer />
+    </div>
+  );
+};
 
 export const FAQPage = ({ hideNavbar = false }) => (
   <div style={{ minHeight: '100vh', background: 'var(--bg-body)' }}>
-    {!hideNavbar && <Navbar />}
+    {!hideNavbar && <PublicHeader />}
     <PageHero title="Frequently Asked Questions" subtitle="Quick answers to help you navigate the grievance redressal system." />
     <Section>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
@@ -149,7 +107,7 @@ export const FAQPage = ({ hideNavbar = false }) => (
 
 export const ProcessPage = ({ hideNavbar = false }) => (
   <div style={{ minHeight: '100vh', background: 'var(--bg-body)' }}>
-    {!hideNavbar && <Navbar />}
+    {!hideNavbar && <PublicHeader />}
     <PageHero title="The Resolution Journey" subtitle="From filed to finished: see how we handle your grievances." />
     <Section>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '80px', padding: '40px 0' }}>
@@ -172,3 +130,5 @@ export const ProcessPage = ({ hideNavbar = false }) => (
     <Footer />
   </div>
 );
+
+

@@ -25,12 +25,15 @@ const app    = express();
 const server = http.createServer(app);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
-const io = new Server(server, { cors: { origin: CLIENT_ORIGIN, credentials: true } });
+// Allow any origin in development to support mobile/LAN testing
+const corsOrigin = process.env.NODE_ENV === 'production' ? CLIENT_ORIGIN : true;
+
+const io = new Server(server, { cors: { origin: corsOrigin, credentials: true } });
 
 const PORT = process.env.PORT || 3001;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(rateLimit());

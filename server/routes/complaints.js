@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { query, getClient } = require('../models/db');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { auditLog } = require('../middleware/audit');
-const { classifyComplaint, detectDuplicates } = require('../services/aiService');
+const { classifyComplaint, detectDuplicates, DEPT_TO_ID } = require('../services/aiService');
 const { getSLADeadline, getSLAStatus, autoAssignOfficer, decrementOfficerLoad, addStatusHistory } = require('../services/workflowService');
 const { notifyComplaintCreated, notifyAssigned, notifyStatusChange } = require('../services/notificationService');
 const { rateLimit } = require('../middleware/rateLimiter');
@@ -57,6 +57,14 @@ router.post('/analyze', authMiddleware, async (req, res, next) => {
     const { description } = req.body;
     if (!description) return res.status(400).json({ error: 'Description required' });
     const analysis = await classifyComplaint(description);
+    
+    if (analysis.isGibberish) {
+      return res.status(422).json({ 
+        error: analysis.error || 'Description is too short or unclear',
+        isGibberish: true 
+      });
+    }
+    
     res.json(analysis);
   } catch (err) { next(err); }
 });
@@ -203,22 +211,24 @@ router.post('/', authMiddleware, upload.array('media', 4), async (req, res, next
     const mediaUrls = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
 
     const classification = await classifyComplaint(description);
+    
+    if (classification.isGibberish) {
+      return res.status(422).json({ 
+        error: classification.error || 'Description is too short or unclear. Please provide more details.',
+        isGibberish: true 
+      });
+    }
+
     const topCat         = classification.categories[0];
     const finalPriority  = classification.isUrgent ? 'P1' : priority;
-    const DEPT_MAP = {
-      'Water Supply': 'd1',
-      'Roads & Infrastructure': 'd2',
-      'Sanitation': 'd3',
-      'Public Safety': 'd4',
-      'Health': 'd5',
-      'Education': 'd6',
-      'Other': 'd7',
-      'Transport': 'd8'
-    };
-    const deptId = DEPT_MAP[topCat?.department] || 'd7';
     const cat            = category || topCat?.department || 'General';
+    const deptId         = DEPT_TO_ID[topCat?.department] || 'd7';
     const slaDeadline    = getSLADeadline(finalPriority);
     const tid            = ticketId();
+
+    // Store translation and summary if provided by AI
+    const aiSummary = classification.summary || '';
+    const aiTranslation = classification.translatedDescription || '';
 
     // AI Geospatial Duplicate Detection
     let parentId = null;
@@ -233,7 +243,7 @@ router.post('/', authMiddleware, upload.array('media', 4), async (req, res, next
       const nearby = potentialDups.filter(d => getDistance(lat, lng, d.lat, d.lng) < 500);
       
       if (nearby.length > 0) {
-        const matchedId = await detectDuplicates({ title, description }, nearby);
+        const matchedId = await detectDuplicates({ title, description: aiTranslation || description }, nearby);
         if (matchedId) {
           const match = nearby.find(d => d.id === matchedId);
           parentId = match.parent_id || match.id;
@@ -244,12 +254,12 @@ router.post('/', authMiddleware, upload.array('media', 4), async (req, res, next
     const { rows } = await query(`
       INSERT INTO complaints
         (ticket_id, user_id, citizen_name, title, description, location, lat, lng,
-         category, department_id, priority, status, language, ai_classification, sla_deadline, media_urls, parent_id)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new',$12,$13,$14,$15,$16)
+         category, department_id, priority, status, language, ai_classification, sla_deadline, media_urls, parent_id, ai_summary, translated_description)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new',$12,$13,$14,$15,$16,$17,$18)
       RETURNING *
     `, [tid, req.user.id, req.user.name, title, description, location, lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
         cat, deptId, finalPriority, language,
-        JSON.stringify(classification), slaDeadline, JSON.stringify(mediaUrls), parentId]);
+        JSON.stringify(classification), slaDeadline, JSON.stringify(mediaUrls), parentId, aiSummary, aiTranslation]);
 
     const complaint = rows[0];
 
@@ -275,7 +285,7 @@ router.post('/', authMiddleware, upload.array('media', 4), async (req, res, next
     // Smart auto-assign (non-blocking — complaint is already saved)
     setImmediate(async () => {
       try {
-        const officer = await autoAssignOfficer(complaint.id, deptId, finalPriority);
+        const officer = await autoAssignOfficer(complaint.id, deptId, finalPriority, location);
         if (officer) {
           await notifyAssigned(complaint.id, tid, officer.id, complaint.user_id);
         }
@@ -362,9 +372,10 @@ router.put('/:id/assign', authMiddleware, requireRole('dept_head','collector','s
     `, [officerId]);
 
     const { rows: [updated] } = await query(`
-      UPDATE complaints SET assigned_to = $1, status = 'assigned', updated_at = NOW()
-      WHERE id = $2 RETURNING *
-    `, [officerId, complaint.id]);
+      UPDATE complaints 
+      SET assigned_to = $1, department_id = $2, status = 'assigned', updated_at = NOW()
+      WHERE id = $3 RETURNING *
+    `, [officerId, officer.department_id, complaint.id]);
 
     await addStatusHistory(complaint.id, 'assigned', req.user.id, `Manually assigned to ${officer.name}`);
     await notifyAssigned(complaint.id, complaint.ticket_id, officerId, complaint.user_id);

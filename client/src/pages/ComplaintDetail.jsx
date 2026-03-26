@@ -6,7 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import CustomSelect from '../components/CustomSelect';
 import { api } from '../utils/api';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/useAuthStore';
 
 const AlertIcon = ({ size=16, color="currentColor" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>;
 const ClipboardIcon = ({ size=16, color="currentColor" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>;
@@ -309,11 +309,12 @@ export default function ComplaintDetail() {
   const { id } = useParams();
   const [sp] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const { t } = useTranslation();
 
   const [complaint, setComplaint] = useState(null);
   const [officers, setOfficers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -325,6 +326,7 @@ export default function ComplaintDetail() {
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState('');
 
+  const [selectedDept, setSelectedDept] = useState('');
   const [selectedOfficer, setSelectedOfficer] = useState('');
   const [assigning, setAssigning] = useState(false);
 
@@ -340,12 +342,20 @@ export default function ComplaintDetail() {
       .then(c => {
         setComplaint(c);
         if (['dept_head', 'collector', 'super_admin'].includes(user?.role)) {
-          api.getDeptOfficers(c.departmentId).then(setOfficers).catch(() => {});
+          setSelectedDept(c.departmentId);
+          api.getDepartments().then(setDepartments).catch(() => {});
         }
       })
       .catch(() => setError('Complaint not found or access denied'))
       .finally(() => setLoading(false));
   }, [id, user?.role]);
+
+  useEffect(() => {
+    if (selectedDept && ['dept_head', 'collector', 'super_admin'].includes(user?.role)) {
+      api.getDeptOfficers(selectedDept).then(setOfficers).catch(() => setOfficers([]));
+      setSelectedOfficer('');
+    }
+  }, [selectedDept, user?.role]);
 
   const updateStatus = async (status) => {
     setStatusError(''); setStatusLoading(true);
@@ -760,30 +770,44 @@ export default function ComplaintDetail() {
             )}
 
             {/* Assign Officer */}
-            {canAssign && officers.length > 0 && (
+            {canAssign && (
               <div className="card" style={{ padding: '18px' }}>
                 <h3 style={{ fontFamily: 'Rajdhani,sans-serif', color: 'var(--text-main)', marginBottom: '12px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <UserIcon size={18} color="var(--text-main)" /> {complaint.assignedTo ? 'Re-assign' : 'Assign Officer'}
                 </h3>
                 {complaint.assignedTo && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-2)', marginBottom: '8px', padding: '6px 10px', background: 'var(--snow)', borderRadius: 'var(--radius)' }}>
-                    Currently: <strong>{officers.find(o => o.id === complaint.assignedTo)?.name || 'Unknown'}</strong>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-2)', marginBottom: '12px', padding: '8px 10px', background: 'var(--snow)', borderRadius: 'var(--radius)' }}>
+                    Currently Assigned To: <strong>{complaint.officerName || complaint.assignedToName || 'Unknown Officer'}</strong>
                   </div>
                 )}
-                <CustomSelect
-                  className="input"
-                  value={selectedOfficer}
-                  onChange={e => setSelectedOfficer(e.target.value)}
-                  style={{ marginBottom: '10px' }}
-                  placeholder="Select officer…"
-                  options={[
-                    { label: 'Select officer…', value: '' },
-                    ...officers.map(o => ({
-                      label: `${o.name}${o.id === complaint.assignedTo ? ' (current)' : ''}`,
-                      value: o.id
-                    }))
-                  ]}
-                />
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', display: 'block', marginBottom: '4px' }}>Department</label>
+                  <CustomSelect
+                    className="input"
+                    value={selectedDept}
+                    onChange={e => setSelectedDept(e.target.value)}
+                    options={[
+                      { label: 'Select department...', value: '' },
+                      ...departments.map(d => ({ label: d.name, value: d.id }))
+                    ]}
+                  />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', display: 'block', marginBottom: '4px' }}>Officer</label>
+                  <CustomSelect
+                    className="input"
+                    value={selectedOfficer}
+                    onChange={e => setSelectedOfficer(e.target.value)}
+                    options={[
+                      { label: officers.length === 0 ? 'No officers available' : 'Select officer...', value: '' },
+                      ...officers.map(o => ({
+                        label: `${o.name}${o.id === complaint.assignedTo ? ' (current)' : ''}`,
+                        value: o.id
+                      }))
+                    ]}
+                    disabled={officers.length === 0}
+                  />
+                </div>
                 <button
                   className="btn btn-primary btn-sm"
                   style={{ width: '100%', justifyContent: 'center' }}
@@ -828,3 +852,5 @@ export default function ComplaintDetail() {
     </div>
   );
 }
+
+

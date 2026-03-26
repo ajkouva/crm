@@ -4,7 +4,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { api } from '../utils/api';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/useAuthStore';
 import { useTranslation } from 'react-i18next';
 
 const COLORS = ['#FF9933','#0a2240','#138808','#1565c0','#6a1b9a','#e65100','#c0392b','#f57f17'];
@@ -23,7 +23,7 @@ function LoadBar({ value, max }) {
 }
 
 export default function Analytics() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const { t } = useTranslation();
   const [trends, setTrends]         = useState([]);
   const [depts, setDepts]           = useState([]);
@@ -201,3 +201,5 @@ export default function Analytics() {
     </div>
   );
 }
+
+

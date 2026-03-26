@@ -1,5 +1,6 @@
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '[GCP_API_KEY]';
-const AI_TIMEOUT_MS = 6000; // 6-second timeout so AI never blocks complaint submission
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434/api/generate';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
+const AI_TIMEOUT_MS = 20000;
 
 const DEPARTMENTS = [
   'Water Supply', 'Roads & Infrastructure', 'Sanitation',
@@ -12,26 +13,81 @@ const DEPT_TO_ID = {
   'Education': 'd7', 'Transport': 'd8'
 };
 
+// ── Gibberish / low-quality input detection ───────────────────────────────────
+/**
+ * Returns true if the text is too short, repetitive, or has no meaningful words.
+ * "hi", "hello", "test", "asdfjkl", etc. will all be caught.
+ */
+function isGibberish(text) {
+  const t = (text || '').trim().toLowerCase();
+
+  // Too short
+  if (t.length < 8) {
+    // Exception for very short but critical words
+    const CRITICAL = new Set(['fire', 'help', 'leak', 'accident', 'danger', 'dead', 'death', 'sos', 'blood']);
+    if (!CRITICAL.has(t)) return true;
+  }
+
+  const words = t.split(/\s+/).filter(Boolean);
+
+  // Too few words
+  if (words.length < 2) return true;
+
+  // Use Unicode property escapes for letters (including Hindi, etc.)
+  // \p{L} matches any letter from any language
+  const meaningfulWords = words.filter(w => w.length >= 2 && /\p{L}/u.test(w));
+  
+  // If we have some meaningful words, it's probably not gibberish
+  if (meaningfulWords.length >= 2) return false;
+
+  // Entirely repeated words (e.g. "test test test")
+  const unique = new Set(words);
+  if (unique.size === 1 && words.length > 1) return true;
+
+  // Only common filler words / greetings / garbage
+  const FILLER = new Set([
+    'hi', 'hello', 'hey', 'test', 'testing', 'yo', 'helo', 'hii', 'helo',
+    'ok', 'okay', 'yes', 'no', 'nope', 'bye', 'lol', 'lmao', 'wtf', 'asdf',
+    'qwerty', 'abcd', 'abc', 'xyz', 'zzz', 'aaa', 'bbb', 'ccc',
+    'nothing', 'something', 'anything', 'idk', 'idc', 'haha', 'hmm',
+  ]);
+  const allFiller = words.every(w => FILLER.has(w));
+  if (allFiller) return true;
+
+  // Fraction of unique chars too low (e.g. "aaaaaaaaaaaaa")
+  const uniqueChars = new Set(t.replace(/\s/g, '')).size;
+  if (uniqueChars < 3) return true; // Relaxed from 4 to 3
+
+  return false;
+}
+
 // ── Keyword-based fallback classifier ────────────────────────────────────────
 function keywordClassify(text) {
   const t = text.toLowerCase();
   const scores = {
     'Water Supply':           ['water', 'pipe', 'leak', 'supply', 'tap', 'drainage', 'flood', 'sewage'].filter(k => t.includes(k)).length,
     'Roads & Infrastructure': ['road', 'pothole', 'bridge', 'footpath', 'pavement', 'street', 'construction'].filter(k => t.includes(k)).length,
-    'Sanitation':             ['garbage', 'waste', 'trash', 'clean', 'toilet', 'latrine', 'dump', 'smell', 'hygiene'].filter(k => t.includes(k)).length,
+    'Sanitation':             (['garbage', 'waste', 'trash', 'clean', 'toilet', 'latrine', 'dump', 'smell', 'hygiene', 'bin', 'sewage'].filter(k => t.includes(k)).length) * 1.5,
     'Electricity':            ['power', 'electricity', 'light', 'wire', 'transformer', 'outage', 'voltage', 'meter'].filter(k => t.includes(k)).length,
-    'Public Safety':          ['crime', 'theft', 'police', 'accident', 'danger', 'safety', 'harassment', 'assault'].filter(k => t.includes(k)).length,
+    'Public Safety':          ['crime', 'theft', 'police', 'accident', 'danger', 'safety', 'harassment', 'assault', 'illegal'].filter(k => t.includes(k)).length,
     'Health Services':        ['hospital', 'doctor', 'medicine', 'health', 'clinic', 'ambulance', 'disease'].filter(k => t.includes(k)).length,
     'Education':              ['school', 'teacher', 'student', 'college', 'education', 'books', 'class'].filter(k => t.includes(k)).length,
     'Transport':              ['bus', 'auto', 'traffic', 'signal', 'transport', 'vehicle', 'parking'].filter(k => t.includes(k)).length,
   };
-  return Object.entries(scores)
-    .sort((a, b) => b[1] - a[1])
+
+  const best = Object.entries(scores)
+    .sort((a, b) => b[1] - a[1]);
+
+  // If the top score is 0, no keywords matched at all — return null to signal unclear
+  if (best[0][1] === 0) return null;
+
+  return best
     .slice(0, 3)
+    .filter(([, score]) => score > 0)
     .map(([dept, score]) => ({
       department: dept,
       departmentId: DEPT_TO_ID[dept],
-      confidence: Math.min(0.95, 0.4 + score * 0.15)
+      confidence: Math.min(0.95, 0.5 + score * 0.15)
     }));
 }
 
@@ -48,82 +104,146 @@ function withTimeout(promise, ms, fallback) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+async function fetchOllama(prompt, jsonMode = false) {
+  try {
+    const response = await fetch(OLLAMA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt: prompt,
+        stream: false,
+        format: jsonMode ? 'json' : undefined
+      })
+    });
+    if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
+    const data = await response.json();
+    return data.response;
+  } catch (err) {
+    console.warn(`[AI-Ollama] Failed to reach local model (${OLLAMA_MODEL}):`, err.message);
+    return null;
+  }
+}
+
 // ── AI Classification ─────────────────────────────────────────────────────────
 async function classifyComplaint(text) {
-  const isUrgent = detectUrgency(text);
-
-  if (!GEMINI_API_KEY) {
-    return { categories: keywordClassify(text), isUrgent, method: 'keyword' };
+  // ── GATE 1: Gibberish / low-quality input ─────────────────────────────────
+  if (isGibberish(text)) {
+    return {
+      categories: [],
+      isUrgent: false,
+      isGibberish: true,
+      summary: '',
+      translatedDescription: text,
+      method: 'gibberish-rejected',
+      error: 'Your complaint description is too short or unclear. Please provide more details about the issue (at least 8 characters with descriptive words).'
+    };
   }
 
-  const prompt = `Classify this citizen complaint into the top 3 most relevant government departments from this list: ${DEPARTMENTS.join(', ')}.
+  const isUrgent = detectUrgency(text);
+
+  // ── GATE 2: Keyword fallback first (fast, no AI needed for obvious cases) ──
+  const keywordResult = keywordClassify(text);
+
+  const prompt = `You are a government complaint classification system for India.
+Classify this citizen complaint into ONE department from: ${DEPARTMENTS.join(', ')}.
+
+Rules:
+- WASTE/GARBAGE/TRASH/DRAIN → "Sanitation"
+- POTHOLE/ROAD/BRIDGE → "Roads & Infrastructure"
+- ELECTRICITY/POWER/WIRE/OUTAGE → "Electricity"
+- WATER/LEAK/TAP/PIPELINE → "Water Supply"
+- If the text is obvious nonsense or pure greetings with no context (e.g. "hi", "asdfasdf", "hello") → respond with isGibberish: true. If there are AT LEAST 2 contextual words (e.g. "water leak"), it is NOT gibberish.
+- confidence must be 0.0–1.0
 
 Complaint: "${text.slice(0, 1000)}"
 
-Respond ONLY with valid JSON in this exact format:
-{"categories": [{"department": "...", "confidence": 0.9}, {"department": "...", "confidence": 0.7}, {"department": "...", "confidence": 0.4}], "isUrgent": false}
+Respond ONLY with valid JSON:
+{
+  "categories": [{"department": "Electricity", "confidence": 0.9}],
+  "isGibberish": false,
+  "isUrgent": false,
+  "summary": "One-sentence English summary of the complaint",
+  "translatedDescription": "Full English translation if non-English, else same as input"
+}`;
 
-confidence is a number 0-1. isUrgent is true if the complaint involves danger/emergency.`;
+  const fallbackCategories = keywordResult || [{
+    department: 'General',
+    departmentId: 'd7',
+    confidence: 0.3
+  }];
+  const fallback = {
+    categories: fallbackCategories,
+    isUrgent,
+    summary: text.slice(0, 100),
+    translatedDescription: text,
+    method: keywordResult ? 'keyword-fallback' : 'keyword-timeout'
+  };
 
-  const aiCall = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 300 }
-    })
-  }).then(async r => {
-    const data = await r.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-    const categories = parsed.categories.map(c => ({
-      ...c,
-      departmentId: DEPT_TO_ID[c.department] || 'd1'
-    }));
-    return { categories, isUrgent: parsed.isUrgent || isUrgent, method: 'ai' };
-  });
+  const aiCall = async () => {
+    const ollamaRaw = await fetchOllama(prompt, true);
+    if (ollamaRaw) {
+      try {
+        const parsed = JSON.parse(ollamaRaw.trim());
 
-  const fallback = { categories: keywordClassify(text), isUrgent, method: 'keyword-timeout' };
+        // AI says it's gibberish
+        if (parsed.isGibberish === true) {
+          return {
+            categories: [],
+            isUrgent: false,
+            isGibberish: true,
+            summary: '',
+            translatedDescription: text,
+            method: 'ollama-gibberish',
+            error: 'Your complaint description does not describe a real civic issue. Please be more specific.'
+          };
+        }
 
-  try {
-    return await withTimeout(aiCall, AI_TIMEOUT_MS, fallback);
-  } catch {
-    return { categories: keywordClassify(text), isUrgent, method: 'keyword-fallback' };
-  }
+        const categories = (parsed.categories || []).map(c => ({
+          ...c,
+          departmentId: DEPT_TO_ID[c.department] || 'd7'
+        }));
+
+        if (!categories.length) return fallback;
+
+        return {
+          categories,
+          isUrgent: parsed.isUrgent || isUrgent,
+          summary: parsed.summary || text.slice(0, 100),
+          translatedDescription: parsed.translatedDescription || text,
+          method: 'ollama'
+        };
+      } catch (e) {
+        console.error(`[AI-Local] Ollama Parse Error:`, e.message);
+      }
+    }
+    return fallback;
+  };
+
+  return await withTimeout(aiCall(), AI_TIMEOUT_MS, fallback);
 }
 
 // ── AI Summary ────────────────────────────────────────────────────────────────
 async function generateSummary(complaint) {
-  if (!GEMINI_API_KEY) {
-    return `Complaint regarding ${complaint.category} in ${complaint.location || 'the area'}. Priority: ${complaint.priority}.`;
-  }
+  const prompt = `Summarize this citizen complaint in one concise English sentence for an officer dashboard. 
+If the input is in Hindi, translate it to English first.
 
-  const prompt = `Summarize this citizen complaint in one concise sentence for an officer dashboard:\n\n"${complaint.description.slice(0, 1000)}"\n\nReturn only the summary sentence without quotation marks.`;
+Complaint: "${complaint.description.slice(0, 1000)}"
 
-  const aiCall = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 150 }
-    })
-  }).then(async r => {
-    const data = await r.json();
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
-    if (text) text = text.replace(/^"|"$/g, '');
-    return text;
-  });
+Return only the summary sentence without quotation marks.`;
 
-  try {
-    return await withTimeout(aiCall, AI_TIMEOUT_MS, null) || complaint.description.slice(0, 120);
-  } catch {
+  const aiCall = async () => {
+    const ollamaSummary = await fetchOllama(prompt);
+    if (ollamaSummary) return ollamaSummary.trim().replace(/^"|"$/g, '');
     return complaint.description.slice(0, 120);
-  }
+  };
+
+  return await withTimeout(aiCall(), AI_TIMEOUT_MS, complaint.description.slice(0, 120));
 }
 
 /** Detect if a new complaint is a duplicate of any existing recent complaints. */
 async function detectDuplicates(newComplaint, recentComplaints) {
-  if (!GEMINI_API_KEY || !recentComplaints.length) return null;
+  if (!recentComplaints.length) return null;
 
   const list = recentComplaints.map(c => `ID: ${c.id}\nTitle: ${c.title}\nDescription: ${c.description.slice(0, 300)}`).join('\n\n---\n\n');
   const prompt = `A citizen is submitting a new complaint. Below is a list of existing nearby complaints. Determine if the new complaint is a duplicate (describing the exact same incident/issue) of ANY existing complaint.
@@ -137,27 +257,26 @@ ${list}
 
 Return ONLY the ID of the matching duplicate complaint, or "NULL" if no duplicate is found.`;
 
-  const aiCall = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 50 }
-    })
-  }).then(async r => {
-    const data = await r.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'NULL';
-    if (text === 'NULL' || text === 'null') return null;
-    // Basic validation that output is a UUID format or matches one of the IDs
-    const matchedId = text.match(/[0-9a-f-]{36}/i)?.[0] || text;
-    return recentComplaints.find(c => c.id === matchedId) ? matchedId : null;
-  });
+  const aiCall = async () => {
+    const ollamaId = await fetchOllama(prompt);
+    if (ollamaId && ollamaId.trim() !== 'NULL' && ollamaId.trim() !== 'null') {
+       return ollamaId.trim().match(/[0-9a-f-]{36}/i)?.[0] || 'NULL';
+    }
+    return null;
+  };
 
   try {
-    return await withTimeout(aiCall, AI_TIMEOUT_MS, null);
+    const matchedId = await withTimeout(aiCall(), AI_TIMEOUT_MS, null);
+    return recentComplaints.find(c => c.id === matchedId) ? matchedId : null;
   } catch {
     return null;
   }
 }
 
-module.exports = { classifyComplaint, generateSummary, detectUrgency, detectDuplicates };
+module.exports = {
+  DEPT_TO_ID,
+  isGibberish,
+  classifyComplaint,
+  generateSummary,
+  detectDuplicates
+};

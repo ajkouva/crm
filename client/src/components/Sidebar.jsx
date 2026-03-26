@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/useAuthStore';
 import { useTheme } from '../context/ThemeContext';
 import {
   DashboardIcon, ComplaintsIcon, SubmitIcon, AnalyticsIcon,
@@ -63,7 +63,7 @@ const ThemeToggle = () => {
 };
 
 export default function Sidebar({ notifCount = 0, isOpen = false, onClose, isCollapsed, onToggleCollapse }) {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const links = NAV[user?.role] || NAV.citizen;
@@ -161,12 +161,12 @@ export default function Sidebar({ notifCount = 0, isOpen = false, onClose, isCol
 }
 
 const s = {
-  sidebar:   { position: 'fixed', top: 0, left: 0, height: '100vh', background: 'var(--navy)', display: 'flex', flexDirection: 'column', padding: 0, overflowY: 'auto', zIndex: 100 },
-  brand:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' },
+  sidebar:   { position: 'fixed', top: 0, left: 0, height: '100svh', background: 'var(--navy)', display: 'flex', flexDirection: 'column', padding: 0, zIndex: 100 },
+  brand:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 },
   ashoka:    { fontSize: '1.75rem' },
   brandName: { fontFamily: 'Rajdhani,sans-serif', fontWeight: 700, fontSize: '1.25rem', color: '#fff', letterSpacing: '0.05em' },
   brandSub:  { fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' },
-  nav:       { flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '2px' },
+  nav:       { flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' },
   link:      { display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: 'var(--radius)', fontSize: '0.875rem', fontWeight: 500, color: 'rgba(255,255,255,0.65)', transition: 'all 0.15s', position: 'relative' },
   linkActive:{ background: 'rgba(255,153,51,0.15)', color: 'var(--saffron)' },
   badge:     { marginLeft: 'auto', background: 'var(--red)', color: '#fff', borderRadius: '10px', fontSize: '0.7rem', padding: '1px 6px', fontWeight: 700, minWidth: '18px', textAlign: 'center' },
@@ -176,3 +176,5 @@ const s = {
   userName:  { fontSize: '0.875rem', color: '#fff', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   userRole:  { fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' },
 };
+
+

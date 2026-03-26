@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -58,14 +58,21 @@ function HeatmapLayer({ complaints }) {
   return null;
 }
 
-export default function HeatmapWidget({ complaints }) {
+export default memo(function HeatmapWidget({ complaints }) {
   const { theme } = useTheme();
   // Default center (Delhi, India)
   const [center] = useState([28.6139, 77.2090]);
 
   return (
-    <div style={{ width: '100%', height: '400px', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-body)', position: 'relative', zIndex: 1 }}>
-      <MapContainer center={center} zoom={11} style={{ width: '100%', height: '100%' }}>
+    <div style={{ width: '100%', height: '400px', borderRadius: '16px', overflow: 'hidden', position: 'relative', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
+      <MapContainer 
+        center={center} 
+        zoom={11} 
+        scrollWheelZoom={false} 
+        dragging={!L.Browser.mobile}
+        tap={!L.Browser.mobile}
+        style={{ width: '100%', height: '100%' }}
+      >
         <TileLayer
           url={theme === 'dark' 
             ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -76,14 +83,16 @@ export default function HeatmapWidget({ complaints }) {
         <HeatmapLayer complaints={complaints} />
       </MapContainer>
       
-      <div style={{ position: 'absolute', bottom: '20px', right: '20px', zIndex: 1000, background: 'var(--bg-card)', padding: '10px 14px', borderRadius: '8px', boxShadow: 'var(--shadow)', border: '1px solid var(--border-color)' }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Heatmap Density</div>
+      <div style={{ position: 'absolute', bottom: '20px', right: '20px', zIndex: 1000, background: 'var(--bg-card)', padding: '12px 16px', borderRadius: '12px', boxShadow: 'var(--shadow-ambient)' }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Heatmap Density</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-mist)' }}>Low</span>
-          <div style={{ width: '120px', height: '10px', background: 'linear-gradient(to right, blue, cyan, lime, yellow, red)', borderRadius: '5px' }} />
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-mist)' }}>High</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-mist)' }}>Low</span>
+          <div style={{ width: '120px', height: '8px', background: 'linear-gradient(to right, rgba(0,0,255,0.5), cyan, lime, yellow, red)', borderRadius: '4px' }} />
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-mist)' }}>High</span>
         </div>
       </div>
     </div>
   );
-}
+});
+
+

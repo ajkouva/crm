@@ -39,14 +39,21 @@ async function req(path, options = {}) {
     },
   });
 
-  if (res.status === 401) {
+  if (res.status === 401 && !path.includes('/auth/login')) {
     clearToken();
-    window.location.href = '/auth';
+    if (window.location.pathname !== '/auth') {
+      window.location.href = '/auth';
+    }
     throw new Error('Session expired. Please log in again.');
   }
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.response = { data }; // Mimic axios for compatibility with existing code
+    throw err;
+  }
   return toCamel(data);
 }
 
@@ -109,3 +116,5 @@ export const api = {
   adminUpdateDept:     (id, b) => req(`/admin/departments/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
   adminDeleteDept:     id => req(`/admin/departments/${id}`, { method: 'DELETE' }),
 };
+
+

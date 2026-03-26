@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/useAuthStore';
 import CustomSelect from '../components/CustomSelect';
+import { SkeletonTable, EmptyState, ErrorState } from '../components/Skeleton';
 
 const STATUS_OPTS = ['','new','assigned','in_progress','pending_escalation','escalated','resolved','closed'];
 const PRIORITY_OPTS = ['','P1','P2','P3'];
@@ -28,24 +29,27 @@ function timeAgo(d) {
 }
 
 export default function ComplaintsList() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [complaints, setComplaints] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ status: searchParams.get('status')||'', priority:'', search:'' });
   const [page, setPage] = useState(1);
 
   useEffect(() => { load(); }, [filters, page]);
 
   const load = async () => {
-    setLoading(true);
+    setLoading(true); setError(null);
     try {
       const p = new URLSearchParams({ page, limit:15, ...Object.fromEntries(Object.entries(filters).filter(([,v])=>v)) });
       const data = await api.getComplaints(p.toString());
       setComplaints(data.complaints); setTotal(data.total);
+    } catch (err) {
+      setError(err?.message || 'Could not load complaints.');
     } finally { setLoading(false); }
   };
 
@@ -104,12 +108,18 @@ export default function ComplaintsList() {
         </div>
 
         {/* Table */}
-        <div className="card" style={{ overflow:'auto' }}>
-          {loading ? (
-            <div style={{ padding:'40px', textAlign:'center', color:'var(--text-mist)' }}>Loading…</div>
-          ) : complaints.length === 0 ? (
-            <div style={{ padding:'60px', textAlign:'center', color:'var(--text-mist)' }}>No complaints found</div>
-          ) : (
+        {error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : loading ? (
+          <SkeletonTable rows={6} cols={7} />
+        ) : complaints.length === 0 ? (
+          <EmptyState
+            icon="📋"
+            title="No complaints found"
+            subtitle="Try adjusting your filters, or file a new complaint if you're a citizen."
+          />
+        ) : (
+          <div className="card" style={{ overflow:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ background:'var(--bg-body)', borderBottom:'2px solid var(--border-color)' }}>
@@ -148,8 +158,8 @@ export default function ComplaintsList() {
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Pagination */}
         {total > 15 && (
@@ -163,3 +173,5 @@ export default function ComplaintsList() {
     </div>
   );
 }
+
+

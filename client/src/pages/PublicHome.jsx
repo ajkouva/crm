@@ -1,224 +1,287 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/useAuthStore';
 import { useTheme } from '../context/ThemeContext';
-import { 
-  SubmitIcon, TrackIcon, 
-  AnalyticsIcon, InfoIcon, SunIcon, MoonIcon 
-} from '../components/Icons';
+import { SubmitIcon, TrackIcon, AnalyticsIcon, InfoIcon } from '../components/Icons';
+import PublicHeader from '../components/PublicHeader';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-const IndiaFlag = () => (
-  <svg width="24" height="16" viewBox="0 0 900 600" style={{ borderRadius: '2px' }}>
-    <rect width="900" height="200" fill="#FF9933"/>
-    <rect width="900" height="200" y="200" fill="#FFFFFF"/>
-    <rect width="900" height="200" y="400" fill="#138808"/>
-    <circle cx="450" cy="300" r="40" fill="none" stroke="#000080" strokeWidth="2"/>
-    {[...Array(24)].map((_, i) => (
-      <line key={i} x1="450" y1="300" x2={450 + 40 * Math.sin(i * Math.PI / 12)} y2={300 - 40 * Math.cos(i * Math.PI / 12)} stroke="#000080" strokeWidth="1"/>
-    ))}
-  </svg>
-);
-
-const GlobeIcon = ({ size=16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
-);
+gsap.registerPlugin(ScrollTrigger);
 
 export default function PublicHome() {
-  const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const { t, i18n } = useTranslation();
+  const { user } = useAuthStore();
+  const { t } = useTranslation();
   const [stats, setStats] = useState({ total: 0, resolved: 0, avgResolutionHours: 0 });
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const desktopImages = ['/img1.jpeg', '/img2.jpg', '/img3.jpg', '/img4.jpeg', '/img5.jpeg'];
+  const mobileImages = ['/mobile1.jpeg', '/mobile2.jpeg', '/mobile3.jpeg', '/mobile4.jpeg'];
+  const bgImages = isMobile ? mobileImages : desktopImages;
+  const [bgIndex, setBgIndex] = useState(0);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setBgIndex(p => (p + 1) % bgImages.length), 5000);
+    return () => clearInterval(timer);
+  }, [bgImages.length]);
 
   useEffect(() => {
     fetch('http://localhost:3001/api/analytics/public/stats')
-      .then(r => r.json())
-      .then(setStats)
-      .catch(() => { });
+      .then(r => r.json()).then(setStats).catch(() => {});
   }, []);
 
+  // ── GSAP: hero entrance animation ─────────────────────────────────────────
+  useGSAP(() => {
+    const tl = gsap.timeline();
+    tl.from('.hero-title', { y: -30, opacity: 0, duration: 0.4 }, 'hero')
+      .from('.hero-subtitle', { y: 20, opacity: 0, duration: 0.4 }, 'hero')
+      .fromTo('.btn-primary-hero', { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35 }, 'btns')
+      .fromTo('.btn-ghost-hero',   { x: 40,  opacity: 0 }, { x: 0, opacity: 1, duration: 0.35 }, 'btns');
+  }, { dependencies: [] });
+
+  // ── GSAP: scroll-triggered feature cards + stats ───────────────────────────
+  useGSAP(() => {
+    gsap.from('.feature-card', {
+      y: -20, opacity: 0, stagger: 0.1,
+      scrollTrigger: {
+        trigger: '.feature-grid',
+        start: 'top 65%',
+        toggleActions: 'play none none reverse',
+      },
+    });
+    gsap.from('.stats-grid', {
+      opacity: 0, scale: 0.95,
+      scrollTrigger: {
+        trigger: '.stats-grid',
+        start: 'top 70%',
+        toggleActions: 'play none none reverse',
+      },
+    });
+  });
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-body)', color: 'var(--text-main)', transition: 'background 0.3s' }}>
-      {/* Top Bar */}
-      <div className="top-bar" style={{ 
-        background: 'var(--bg-sidebar)', color: '#fff', padding: '10px 24px', 
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem',
-        flexWrap: 'wrap', gap: '8px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <IndiaFlag />
-          <span style={{ fontWeight: 600, letterSpacing: '0.5px', fontSize: '0.7rem' }}>GOVERNMENT OF INDIA</span>
-        </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <button 
-            onClick={() => {
-              const currentLang = typeof i18n?.language === 'string' ? i18n.language : 'en';
-              i18n.changeLanguage(currentLang.startsWith('en') ? 'hi' : 'en');
-            }}
-            style={{ color: 'var(--saffron)', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <GlobeIcon size={16} />
-            <span className="mobile-hide">{(typeof i18n?.language === 'string' ? i18n.language : 'en').startsWith('en') ? 'A/अ Hindi' : 'A/अ English'}</span>
-            <span className="mobile-only">{(typeof i18n?.language === 'string' ? i18n.language : 'en').startsWith('en') ? 'HI' : 'EN'}</span>
-          </button>
-          <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.2)' }}></div>
-          <button 
-            onClick={toggleTheme}
-            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            style={{ 
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(255, 255, 255, 0.1)', border: 'none',
-              width: '32px', height: '32px', borderRadius: '50%', color: '#fff',
-              cursor: 'pointer', transition: 'background 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-          >
-            {theme === 'light' ? <MoonIcon size={16} /> : <SunIcon size={16} />}
-          </button>
-          <span className="mobile-hide" style={{ marginLeft: '8px', opacity: 0.8 }}>1800-XXX-XXXX</span>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-body)', color: 'var(--text-main)' }}>
+      <PublicHeader />
 
-      {/* Sticky Navbar */}
-      <nav className="public-nav" style={{ 
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-        padding: '15px 24px', background: 'var(--bg-card)', 
-        borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 100,
-        backdropFilter: 'blur(10px)', flexWrap: 'wrap', gap: '15px'
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <section className="hero-section" style={{
+        position: 'relative', width: '100%',
+        height: '100svh', minHeight: '580px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#0a192f', overflow: 'hidden',
+        paddingTop: '56px',   /* clears fixed header (3px stripe + ~53px bar) */
+        boxSizing: 'border-box',
       }}>
-        <Link to={user ? "/dashboard" : "/"} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-          <img src="/logo.png" alt="Logo" style={{ height: '32px' }} />
-          <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '0.5px' }}>PS-CRM</span>
-        </Link>
-        <div className="nav-links" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <Link to="/about" className="mobile-hide" style={{ color: 'var(--text-main)', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem' }}>About</Link>
-          <Link to="/process" className="mobile-hide" style={{ color: 'var(--text-main)', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem' }}>Process</Link>
-          <Link to="/faq" className="mobile-hide" style={{ color: 'var(--text-main)', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem' }}>FAQ</Link>
-          <Link to={user ? "/dashboard" : "/auth"} style={{ 
-            background: 'var(--saffron)', color: 'var(--navy)', 
-            padding: '8px 18px', borderRadius: 'var(--radius)', 
-            fontWeight: 700, textDecoration: 'none', boxShadow: 'var(--shadow)',
-            fontSize: '0.85rem'
+        {bgImages.map((src, i) => (
+          <img key={src} src={src} alt="" style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', opacity: i === bgIndex ? 1 : 0,
+            transition: 'opacity 1.5s ease-in-out', zIndex: 0,
+          }} />
+        ))}
+        {/* Multi-stop gradient for depth */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1,
+          background: 'linear-gradient(180deg, rgba(10,25,47,0.92) 0%, rgba(10,25,47,0.45) 45%, rgba(10,25,47,0.92) 100%)',
+        }} />
+        {/* Saffron accent bar at bottom */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px', zIndex: 2,
+          background: 'linear-gradient(90deg, #FF9933, #FFFFFF, #138808)',
+        }} />
+
+        <div className="hero-content" style={{
+          position: 'relative', zIndex: 2, textAlign: 'center',
+          padding: '0 20px', maxWidth: '860px', width: '100%',
+        }}>
+          <h1 className="hero-title" style={{
+            fontSize: 'clamp(1.7rem, 5.5vw, 4.5rem)', color: '#fff', fontWeight: 950,
+            fontFamily: 'Rajdhani, sans-serif', lineHeight: 1.05,
+            textShadow: '0 4px 24px rgba(0,0,0,0.7)', letterSpacing: '-0.5px',
+            marginBottom: '16px',
           }}>
-            {user ? 'Dashboard →' : 'Login →'}
-          </Link>
-        </div>
-      </nav>
-
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '60px 20px' }} className="home-main">
-        <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-          <h1 className="hero-title" style={{ fontSize: '4rem', color: 'var(--text-main)', marginBottom: '20px', fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>
-            {t('home.hero_title_1')} <br className="mobile-hide" /> <span style={{ color: 'var(--saffron)' }}>{t('home.hero_title_2')}</span>
+            {t('home.hero_title_1')}<br />
+            <span style={{ color: 'var(--saffron)' }}>{t('home.hero_title_2')}</span>
           </h1>
-          <p style={{ fontSize: '1.1rem', color: 'var(--text-dim)', maxWidth: '750px', margin: '0 auto 40px', lineHeight: 1.6 }}>
+
+          <p className="hero-subtitle" style={{
+            fontSize: 'clamp(0.82rem, 2vw, 1.1rem)', color: 'rgba(255,255,255,0.88)',
+            maxWidth: '600px', margin: '0 auto 28px', lineHeight: 1.6, fontWeight: 400,
+          }}>
             {t('home.hero_subtitle')}
           </p>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/auth" className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '1rem', background: 'var(--navy)', color: '#fff' }}>{t('home.file_now')}</Link>
-            <Link to="/transparency" className="btn btn-ghost" style={{ padding: '14px 28px', fontSize: '1rem' }}>{t('home.track_status')}</Link>
-          </div>
-        </div>
 
-        {/* Feature Grid */}
-        <div className="feature-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '32px', marginBottom: '100px' }}>
-          {[
-            { icon: <SubmitIcon size={32} />, title: "Instant Filing", desc: "Easily upload photos, videos, and descriptions. Get a tracking ID instantly." },
-            { icon: <AnalyticsIcon size={32} />, title: "AI Routing", desc: "Advanced Gemini analysis ensures your complaint reaches the right department immediately." },
-            { icon: <TrackIcon size={32} />, title: "Live Tracking", desc: "Step-by-step resolution status with SMS and email notifications at every milestone." },
-            { icon: <InfoIcon size={32} />, title: "24/7 Helpline", desc: "Integrated digital assistance and toll-free helpline for remote or elderly citizens." }
-          ].map((feature, i) => (
-            <div key={i} className="card fade-up" style={{ padding: '48px 40px', textAlign: 'left', animationDelay: `${i * 0.15}s` }}>
-              <div style={{ color: 'var(--saffron)', marginBottom: '24px' }}>{feature.icon}</div>
-              <h3 style={{ fontSize: '1.5rem', color: 'var(--text-main)', marginBottom: '16px', fontFamily: 'Rajdhani, sans-serif' }}>{feature.title}</h3>
-              <p style={{ color: 'var(--text-dim)', lineHeight: 1.6, fontSize: '0.95rem' }}>{feature.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Live Stats */}
-        <div className="stats-section" style={{ 
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', 
-          gap: '24px', background: 'var(--bg-card)', padding: '60px 40px', 
-          borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)',
-          boxShadow: 'var(--shadow-lg)'
-        }}>
-          {[
-            { label: t('list.title', { defaultValue: 'Total Complaints' }), val: stats.total?.toLocaleString() || "..." },
-            { label: t('home.stats_resolved'), val: stats.resolved?.toLocaleString() || "..." },
-            { label: t('home.stats_avg_time'), val: `${stats.avgResolutionHours}h` },
-            { label: "Citizen Satisfaction", val: "94%" }
-          ].map((s, i) => (
-            <div key={i} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '3.2rem', fontWeight: 900, color: 'var(--text-main)', marginBottom: '4px', fontFamily: 'Rajdhani, sans-serif' }}>{s.val}</div>
-              <div style={{ color: 'var(--text-mist)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '1.5px' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </main>
-
-      {/* WhatsApp Integration Section */}
-      <section className="whatsapp-section" style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', padding: '100px 24px' }}>
-        <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '60px', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ fontSize: '2.5rem', color: 'var(--text-main)', marginBottom: '24px', fontFamily: 'Rajdhani, sans-serif', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              फाइल करें व्हाट्सएप पर 
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-            </h2>
-            <p style={{ fontSize: '1.1rem', color: 'var(--text-dim)', marginBottom: '32px', lineHeight: 1.6 }}>
-              Prefer chatting? Just text our bilingual WhatsApp assistant to file or track grievances in seconds. 
-              Upload photos and get live updates directly on your phone.
-            </p>
-            <a href="https://wa.me/1234567890" target="_blank" rel="noreferrer" style={{ 
-              display: 'inline-flex', alignItems: 'center', gap: '12px',
-              background: '#25D366', color: '#fff', padding: '14px 32px', borderRadius: '50px',
-              fontWeight: 700, textDecoration: 'none', fontSize: '1.1rem', boxShadow: '0 4px 15px rgba(37,211,102,0.3)'
-            }}>
-               Chat with PS-CRM BOT
-            </a>
-          </div>
-          <div style={{ background: 'var(--bg-body)', padding: '40px', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border-color)' }}>
-              <blockquote style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontStyle: 'italic', marginBottom: '20px' }}>
-                "The system is surprisingly fast. I filed a road issue on Monday and it was fixed by Wednesday!"
-              </blockquote>
-              <div style={{ fontWeight: 700, color: 'var(--saffron)' }}>— Rakesh Kumar, Ranchi</div>
+          <div className="hero-buttons" style={{
+            display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'nowrap',
+          }}>
+            <Link to={user ? '/submit' : '/auth'} className="btn-primary-hero"
+              style={{
+                padding: '12px 28px', fontSize: '0.9rem', fontWeight: 800,
+                background: 'var(--saffron)', color: '#0a192f',
+                borderRadius: '50px', textDecoration: 'none',
+                boxShadow: '0 8px 24px rgba(255,153,51,0.4)',
+                transition: 'all 0.3s ease', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(255,153,51,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(255,153,51,0.4)'; }}
+            >
+              📋 {t('home.file_now')}
+            </Link>
+            <Link to="/transparency" className="btn-ghost-hero"
+              style={{
+                padding: '12px 28px', fontSize: '0.9rem', fontWeight: 600,
+                background: 'rgba(255,255,255,0.1)', color: '#fff',
+                borderRadius: '50px', textDecoration: 'none',
+                border: '1px solid rgba(255,255,255,0.35)',
+                backdropFilter: 'blur(12px)', transition: 'all 0.3s ease', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'none'; }}
+            >
+              🔍 Transparency Portal
+            </Link>
           </div>
         </div>
       </section>
 
-      <footer style={{ padding: '80px 24px', background: 'var(--bg-sidebar)', color: '#fff', textAlign: 'center' }}>
+      {/* ── FEATURES ─────────────────────────────────────── */}
+      <section style={{ background: 'var(--bg-body)', padding: '80px 20px', borderTop: '1px solid var(--border-color)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', marginBottom: '40px', flexWrap: 'wrap' }}>
-            <Link to="/about" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontWeight: 600 }}>About Us</Link>
-            <Link to="/process" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontWeight: 600 }}>Resolution Process</Link>
-            <Link to="/faq" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontWeight: 600 }}>Help / FAQ</Link>
-            <Link to="/transparency" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontWeight: 600 }}>Transparency Dashboard</Link>
+          {/* Section label */}
+          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: 'var(--saffron)' }}>
+              Core Capabilities
+            </span>
+            <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--text-main)', fontFamily: 'Rajdhani, sans-serif', fontWeight: 800, marginTop: '12px' }}>
+              Built for Every Indian Citizen
+            </h2>
           </div>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', marginBottom: '40px' }}></div>
-          <p style={{ fontSize: '0.85rem', opacity: 0.7, letterSpacing: '0.5px' }}>© 2026 Smart Public Service CRM • Government of India Initiative</p>
-          <p style={{ fontSize: '0.75rem', opacity: 0.4, marginTop: '8px' }}>Designed for Digital India • Powered by Advanced Generative AI</p>
+
+          <div className="feature-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+            {[
+              { icon: <SubmitIcon size={28} />, title: 'Instant Filing', desc: 'Upload photos, videos and descriptions. Receive a tracking ID in seconds.' },
+              { icon: <AnalyticsIcon size={28} />, title: 'AI Routing', desc: 'Gemini AI ensures your complaint reaches exactly the right department.' },
+              { icon: <TrackIcon size={28} />, title: 'Live Tracking', desc: 'Step-by-step updates via SMS and email at every resolution milestone.' },
+              { icon: <InfoIcon size={28} />, title: '24/7 Support', desc: 'Digital assistance and toll-free helpline available for all citizens.' },
+            ].map((f, i) => (
+              <div key={i} className="feature-card card" style={{
+                padding: '36px 28px',
+                borderTop: '3px solid var(--saffron)',
+              }}>
+                <div style={{ color: 'var(--saffron)', marginBottom: '20px', width: '52px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,153,51,0.1)', borderRadius: '12px' }}>
+                  {f.icon}
+                </div>
+                <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '12px', fontFamily: 'Rajdhani, sans-serif', fontWeight: 800 }}>{f.title}</h3>
+                <p style={{ color: 'var(--text-dim)', lineHeight: 1.7, fontSize: '0.875rem' }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── LIVE STATS ───────────────────────────────────── */}
+      <section style={{ background: 'var(--navy)', padding: '72px 20px' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(255,153,51,0.9)' }}>Live Data</span>
+            <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: '#fff', fontFamily: 'Rajdhani, sans-serif', fontWeight: 800, marginTop: '12px' }}>
+              National Grievance Dashboard
+            </h2>
+          </div>
+          <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', background: 'rgba(255,255,255,0.08)', borderRadius: '16px', overflow: 'hidden' }}>
+            {[
+              { val: stats.total?.toLocaleString() || '—', label: 'Total Filed', suffix: '' },
+              { val: stats.resolved?.toLocaleString() || '—', label: 'Resolved', suffix: '' },
+              { val: stats.avgResolutionHours || '—', label: 'Avg. Resolution', suffix: 'h' },
+              { val: '94', label: 'Satisfaction', suffix: '%' },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: '40px 24px', textAlign: 'center', background: 'rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 900, color: '#fff', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>
+                  {s.val}<span style={{ color: 'var(--saffron)', fontSize: '0.6em' }}>{s.suffix}</span>
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA BAND ─────────────────────────────────────── */}
+      <section style={{ background: 'var(--saffron)', padding: '56px 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: '#0a192f', fontFamily: 'Rajdhani, sans-serif', fontWeight: 900, marginBottom: '12px' }}>
+            Your Grievance Deserves Attention
+          </h2>
+          <p style={{ color: 'rgba(10,25,47,0.75)', marginBottom: '28px', fontSize: '0.95rem' }}>
+            File online, via WhatsApp or by visiting your nearest e-Mitra kiosk.
+          </p>
+          <Link to={user ? '/submit' : '/auth'} style={{
+            background: '#0a192f', color: '#fff', padding: '12px 36px',
+            borderRadius: '50px', fontWeight: 800, textDecoration: 'none',
+            fontSize: '0.95rem', display: 'inline-block',
+          }}>
+            File a Complaint Now →
+          </Link>
+        </div>
+      </section>
+
+      {/* ── FOOTER ───────────────────────────────────────── */}
+      <footer style={{ padding: '60px 24px 40px', background: '#0a192f', color: '#fff' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '40px', marginBottom: '40px' }}>
+            <div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, marginBottom: '6px', fontFamily: 'Rajdhani, sans-serif' }}>PS-CRM</div>
+              <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Government of India · Digital India</div>
+            </div>
+            <nav style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+              {[['About', '/about'], ['Process', '/process'], ['FAQ', '/faq'], ['Track', '/track'], ['Transparency', '/transparency']].map(([label, path]) => (
+                <Link key={path} to={path} style={{ color: 'rgba(255,255,255,0.65)', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600 }}>{label}</Link>
+              ))}
+            </nav>
+          </div>
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', marginBottom: '28px' }} />
+          {/* Tricolour stripe */}
+          <div style={{ height: '3px', borderRadius: '2px', background: 'linear-gradient(90deg, #FF9933 33%, #fff 33%, #fff 66%, #138808 66%)', marginBottom: '24px', opacity: 0.6 }} />
+          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+            © 2026 Smart Public Service CRM · Government of India Initiative · Powered by AI
+          </p>
         </div>
       </footer>
 
       <style>{`
-        .mobile-hide { display: inline; }
+        @keyframes pulse {
+          0%,100% { opacity:1; } 50% { opacity:0.4; }
+        }
+        /* ── RESPONSIVE ─────────────────────────── */
         @media (max-width: 1024px) {
-          .feature-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .stats-section { grid-template-columns: repeat(2, 1fr) !important; }
+          .feature-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .stats-grid   { grid-template-columns: repeat(2,1fr) !important; }
         }
         @media (max-width: 768px) {
-          .mobile-hide { display: none !important; }
-          .mobile-only { display: inline !important; }
-          .feature-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
-          .hero-title { font-size: 2.5rem !important; }
-          .home-main { padding: 40px 16px !important; }
-          .card { padding: 32px 24px !important; }
-          .public-nav { padding: 12px 16px !important; justify-content: center !important; }
-          .top-bar { justify-content: space-between !important; text-align: left; padding: 12px 16px !important; }
-          .stats-section { padding: 40px 20px !important; grid-template-columns: 1fr !important; }
-          .whatsapp-section { padding: 60px 16px !important; }
+          .hero-section  { padding-top: 56px !important; }
+          .hero-content  { padding: 0 16px !important; }
+          .hero-title    { font-size: clamp(1.8em, 8vw, 2.5rem) !important; margin-bottom: 14px !important; }
+          .hero-subtitle { font-size: 0.95rem !important; margin-bottom: 24px !important; }
+          .hero-buttons  { gap: 12px !important; flex-wrap: nowrap !important; }
+          .hero-buttons a{ padding: 12px 24px !important; font-size: 0.85rem !important; }
+          .feature-grid  { grid-template-columns: 1fr !important; gap: 14px !important; }
+          .feature-card  { padding: 22px 18px !important; }
+          .stats-grid    { grid-template-columns: repeat(2,1fr) !important; }
+        }
+        @media (max-width: 400px) {
+          .hero-title    { font-size: 1.6rem !important; }
+          .hero-buttons a{ padding: 10px 18px !important; font-size: 0.78rem !important; }
         }
       `}</style>
     </div>
   );
 }
+
+
