@@ -1,3 +1,4 @@
+html, body { height: 100%; overflow: hidden; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -223,7 +224,7 @@ tbody tr:nth-child(5) { animation-delay: 0.40s; }
 
 /* Layout */
 .page-layout { display:flex; min-height:100vh; }
-.main-content { flex:1; margin-left:var(--sidebar-w); min-height:100vh; overflow-x:hidden; padding: 24px; transition: margin-left 0.3s ease; }
+.main-content { flex:1; margin-left:var(--sidebar-w); height:100vh; overflow-y:auto; overflow-x:hidden; padding: 24px; transition: margin-left 0.3s ease; }
 
 /* Page Header with Animation */
 .page-header { 
@@ -251,9 +252,12 @@ tbody tr:nth-child(5) { animation-delay: 0.40s; }
 .filters-selects { display: flex; gap: 12px; flex: 1; min-width: 250px; }
 
 /* Auth Layout (Sovereign Design) */
-.auth-page { display: flex; min-height: 100vh; background: var(--bg-body); width: 100%; border-radius: 0 !important; border: none !important; position: relative; }
-.auth-left { width: 45%; background: #0f1622; color: #fff; padding: 60px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; z-index: 2; box-shadow: 20px 0 60px rgba(0,0,0,0.2); }
-.auth-right { flex: 1; display: flex; align-items: center; justify-content: center; background: transparent; padding: 40px; position: relative; z-index: 2; }
+.auth-page { display: flex; height: 100dvh; background: var(--bg-body); width: 100%; border-radius: 0 !important; border: none !important; position: relative; overflow: hidden; }
+.auth-left { width: 45%; background: #0f1622; color: #fff; padding: 60px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; z-index: 2; box-shadow: 20px 0 60px rgba(0,0,0,0.2); flex-shrink: 0; }
+.auth-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: transparent; padding: 0 40px; position: relative; z-index: 2; overflow-y: auto; scrollbar-gutter: stable; scroll-behavior: smooth; overscroll-behavior: contain; }
+.auth-right::-webkit-scrollbar { width: 4px; }
+.auth-right::-webkit-scrollbar-thumb { background: rgba(255,153,51,0.2); border-radius: 10px; }
+.auth-right > .card { margin: auto 0; padding: 48px 40px; min-height: fit-content; flex-shrink: 0; } /* Auto margin for centering while scrollable */
 
 /* Responsive Adjustments */
 @media (max-width: 1024px) {
@@ -269,6 +273,7 @@ tbody tr:nth-child(5) { animation-delay: 0.40s; }
   :root {
     --sidebar-w: 0px;
   }
+  html, body { height: auto; overflow: auto; }
   .page-layout { flex-direction: column; }
   .sidebar {
     transform: translateX(-100%);
@@ -297,10 +302,10 @@ tbody tr:nth-child(5) { animation-delay: 0.40s; }
   .dashboard-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
   .detail-grid { gap: 16px; }
   
-  .auth-page { flex-direction: column; }
-  .auth-left { width: 100%; min-height: 280px; padding: 40px 24px; text-align: center; }
-  .auth-right { width: 100%; padding: 24px; margin-top: -60px; background: transparent; }
-  .auth-right .card { width: 100%; max-width: 440px; }
+  .auth-page { flex-direction: column; overflow: visible; height: auto; min-height: 100dvh; }
+  .auth-left { width: 100%; min-height: 240px; padding: 40px 24px; text-align: center; flex-shrink: 0; }
+  .auth-right { width: 100%; padding: 0 24px; margin-top: 0; background: transparent; flex: none; overflow: visible; display: flex; flex-direction: column; align-items: center; }
+  .auth-right .card { width: 100%; max-width: 440px; margin: 20px auto 60px; position: relative; z-index: 10; }
   
   .filters-container { flex-direction: column; align-items: stretch; }
   .filters-selects { display: grid; grid-template-columns: 1fr 1fr; min-width: auto; }
@@ -309,7 +314,7 @@ tbody tr:nth-child(5) { animation-delay: 0.40s; }
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr !important; }
   .auth-left { min-height: 220px; padding: 32px 16px; }
-  .auth-right { padding: 16px; margin-top: -40px; }
+  .auth-right { padding: 16px; margin-top: 20px; }
   .meta-grid { grid-template-columns: 1fr !important; }
   .page-header h1 { font-size: 1.4rem !important; }
 }

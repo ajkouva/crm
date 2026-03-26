@@ -21,6 +21,7 @@ export default function PublicHome() {
   const bgImages = isMobile ? mobileImages : desktopImages;
   const [bgIndex, setBgIndex] = useState(0);
 
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -37,27 +38,62 @@ export default function PublicHome() {
       .then(r => r.json()).then(setStats).catch(() => {});
   }, []);
 
-  // ── GSAP: hero entrance animation ─────────────────────────────────────────
+  // ── GSAP: hero entrance animation (runs after header anim ~1.3s) ──────────
   useGSAP(() => {
     const tl = gsap.timeline();
-    tl.from('.hero-title', { y: -30, opacity: 0, duration: 0.4 }, 'hero')
-      .from('.hero-subtitle', { y: 20, opacity: 0, duration: 0.4 }, 'hero')
-      .fromTo('.btn-primary-hero', { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35 }, 'btns')
-      .fromTo('.btn-ghost-hero',   { x: 40,  opacity: 0 }, { x: 0, opacity: 1, duration: 0.35 }, 'btns');
-  }, { dependencies: [] });
+    // div (h1) from top, p from bottom — both at same time
+    tl.from('.hero-content-div', { y: -40, opacity: 0, delay: 1 }, 'together')
+      .from('.hero-content-p',   { y:  40, opacity: 0, delay: 1 }, 'together')
+      // buttons: primary to opacity 1/x 0, ghost to opacity 1/x 0 — same time
+      .to('.btn-primary-hero', { x: 0, opacity: 1 }, 'btns')
+      .to('.btn-ghost-hero',   { x: 0, opacity: 1 }, 'btns');
+  });
 
   // ── GSAP: scroll-triggered feature cards + stats ───────────────────────────
   useGSAP(() => {
+    gsap.from(".HeadingPage2",{
+      y:-40,
+      opacity:0,
+      scrollTrigger:{
+        trigger:".HeadingPage2",
+        start:"top 50%",
+        // markers:true,
+        toggleActions:"play none none reverse",
+      }
+    })
+    gsap.from(".feature-grid",{
+      y:-40,
+      opacity:0,
+      scrollTrigger:{
+        trigger:".feature-grid",
+        start:"top 65%",
+        // markers:true,
+        toggleActions:"play none none reverse",
+      }
+    })
     gsap.from('.feature-card', {
-      y: -20, opacity: 0, stagger: 0.1,
+      y: -20,
+       opacity: 0,
+        stagger: 0.1,
       scrollTrigger: {
         trigger: '.feature-grid',
         start: 'top 65%',
         toggleActions: 'play none none reverse',
       },
     });
+      gsap.from('.Page2-lilte-Header', {
+      y: -20,
+       opacity: 0,
+        stagger: 0.1,
+      scrollTrigger: {
+        trigger: '.Page2-lilte-Header',
+        start: 'top 50%',
+        toggleActions: 'play none none reverse',
+      },
+    });
     gsap.from('.stats-grid', {
-      opacity: 0, scale: 0.95,
+      opacity: 0, 
+      scale: 0.5,
       scrollTrigger: {
         trigger: '.stats-grid',
         start: 'top 70%',
@@ -101,7 +137,7 @@ export default function PublicHome() {
           position: 'relative', zIndex: 2, textAlign: 'center',
           padding: '0 20px', maxWidth: '860px', width: '100%',
         }}>
-          <h1 className="hero-title" style={{
+          <h1 className="hero-title hero-content-div" style={{
             fontSize: 'clamp(1.7rem, 5.5vw, 4.5rem)', color: '#fff', fontWeight: 950,
             fontFamily: 'Rajdhani, sans-serif', lineHeight: 1.05,
             textShadow: '0 4px 24px rgba(0,0,0,0.7)', letterSpacing: '-0.5px',
@@ -111,7 +147,7 @@ export default function PublicHome() {
             <span style={{ color: 'var(--saffron)' }}>{t('home.hero_title_2')}</span>
           </h1>
 
-          <p className="hero-subtitle" style={{
+          <p className="hero-subtitle hero-content-p" style={{
             fontSize: 'clamp(0.82rem, 2vw, 1.1rem)', color: 'rgba(255,255,255,0.88)',
             maxWidth: '600px', margin: '0 auto 28px', lineHeight: 1.6, fontWeight: 400,
           }}>
@@ -128,6 +164,7 @@ export default function PublicHome() {
                 borderRadius: '50px', textDecoration: 'none',
                 boxShadow: '0 8px 24px rgba(255,153,51,0.4)',
                 transition: 'all 0.3s ease', whiteSpace: 'nowrap',
+                opacity: 0, transform: 'translateX(-40px)',
               }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(255,153,51,0.5)'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(255,153,51,0.4)'; }}
@@ -141,6 +178,7 @@ export default function PublicHome() {
                 borderRadius: '50px', textDecoration: 'none',
                 border: '1px solid rgba(255,255,255,0.35)',
                 backdropFilter: 'blur(12px)', transition: 'all 0.3s ease', whiteSpace: 'nowrap',
+                opacity: 0, transform: 'translateX(40px)',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'none'; }}
@@ -155,7 +193,7 @@ export default function PublicHome() {
       <section style={{ background: 'var(--bg-body)', padding: '80px 20px', borderTop: '1px solid var(--border-color)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {/* Section label */}
-          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+          <div className='HeadingPage2' style={{ textAlign: 'center', marginBottom: '56px' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: 'var(--saffron)' }}>
               Core Capabilities
             </span>
@@ -189,7 +227,7 @@ export default function PublicHome() {
       {/* ── LIVE STATS ───────────────────────────────────── */}
       <section style={{ background: 'var(--navy)', padding: '72px 20px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <div className='Page2-lilte-Header' style={{ textAlign: 'center', marginBottom: '48px' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(255,153,51,0.9)' }}>Live Data</span>
             <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: '#fff', fontFamily: 'Rajdhani, sans-serif', fontWeight: 800, marginTop: '12px' }}>
               National Grievance Dashboard

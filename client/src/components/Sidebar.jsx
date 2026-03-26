@@ -98,14 +98,14 @@ export default function Sidebar({ notifCount = 0, isOpen = false, onClose, isCol
       {/* Nav */}
       <nav style={s.nav}>
         {links.map(({ to, Icon, label }) => (
-          <NavLink key={to} to={to} className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+          <NavLink key={to} to={to} onClick={onClose} className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
             <Icon size={18} />
             <span className="hide-collapsed">{label}</span>
           </NavLink>
         ))}
 
         {/* Notifications — always last */}
-        <NavLink to="/notifications" className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+        <NavLink to="/notifications" onClick={onClose} className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
           <NotificationIcon size={18} />
           <span className="hide-collapsed">Notifications</span>
           {notifCount > 0 && (
@@ -116,15 +116,15 @@ export default function Sidebar({ notifCount = 0, isOpen = false, onClose, isCol
         {/* Info Links */}
         <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="hide-collapsed" style={{ padding: '0 12px 8px', fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resources</div>
-          <NavLink to="/about" className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+          <NavLink to="/about" onClick={onClose} className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
             <InfoIcon size={18} />
             <span className="hide-collapsed">About</span>
           </NavLink>
-          <NavLink to="/process" className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+          <NavLink to="/process" onClick={onClose} className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
             <ProcessIcon size={18} />
             <span className="hide-collapsed">Process</span>
           </NavLink>
-          <NavLink to="/faq" className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+          <NavLink to="/faq" onClick={onClose} className="nav-link" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
             <HelpIcon size={18} />
             <span className="hide-collapsed">FAQ</span>
           </NavLink>
