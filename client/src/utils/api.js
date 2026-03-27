@@ -5,7 +5,7 @@
  * PostgreSQL snake_case to camelCase so every page component works unchanged.
  */
 
-const BASE = '/api';
+const BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api`;
 
 export function getToken()     { return localStorage.getItem('pscrm_token'); }
 export function setToken(t)    { localStorage.setItem('pscrm_token', t); }
