@@ -28,6 +28,9 @@ async function sendOtpEmail(toEmail, otpCode, type = 'reset') {
     ? 'Welcome to PS-CRM! Please use the following 6-digit code to verify your account:'
     : 'We received a request to reset your password. Here is your 6-digit OTP:';
 
+  // Always log OTP to server console (visible in Railway logs as fallback)
+  console.log(`[OTP] ${type.toUpperCase()} code for ${toEmail}: ${otpCode}`);
+
   try {
     const mailOptions = {
       from: `"PS-CRM Admin" <${process.env.EMAIL_USER}>`,
@@ -40,8 +43,7 @@ async function sendOtpEmail(toEmail, otpCode, type = 'reset') {
           <div style="background: #f8fafc; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;">
             <h1 style="color: #ff9933; letter-spacing: 8px; font-size: 36px; margin: 0; font-family: monospace;">${otpCode}</h1>
           </div>
-          <p style="color: #64748b; font-size: 14px;">This code will expire in 24 hours. If you did not request this, please ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #64748b; font-size: 14px;">This code will expire in 24 hours.</p>
           <p style="color: #94a3b8; font-size: 12px; text-align: center;">Smart Public Service CRM • Government of India Initiative</p>
         </div>
       `
