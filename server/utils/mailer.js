@@ -27,13 +27,21 @@ async function sendOtpEmail(toEmail, otpCode, type = 'reset') {
   // Priority 1: Gmail SMTP (works for any recipient)
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     try {
+      const port = parseInt(process.env.EMAIL_PORT) || 587;
+      const isSecure = port === 465;
+
+      console.log(`[Email] Attempting Gmail SMTP to ${toEmail} on port ${port} (Secure: ${isSecure})...`);
+      
       const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.EMAIL_PORT) || 587,
-        secure: parseInt(process.env.EMAIL_PORT) === 465,
+        port: port,
+        secure: isSecure,
         auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        tls: { rejectUnauthorized: false }
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 5000, // 5s timeout to prevent hanging on blocked ports
+        greetingTimeout: 5000
       });
+
       await transporter.sendMail({
         from: `"PS-CRM Admin" <${process.env.EMAIL_USER}>`,
         to: toEmail, subject, html
@@ -41,7 +49,7 @@ async function sendOtpEmail(toEmail, otpCode, type = 'reset') {
       console.log(`[Email] ${type} OTP sent to ${toEmail} via Gmail`);
       return;
     } catch (err) {
-      console.error('[Email] Gmail SMTP failed:', err.message, '→ trying Resend...');
+      console.error(`[Email] Gmail SMTP failed: ${err.message}. Trying Resend...`);
     }
   }
 
