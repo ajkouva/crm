@@ -65,8 +65,10 @@ router.post('/register', authLimiter, async (req, res, next) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE,FALSE,$8,$9) RETURNING *
     `, [name, email, (phone || '').slice(0,20), hash, role, departmentId || null, (serviceArea || '').trim().slice(0, 200), otpHashed, otpExpiry]);
 
-    // Send verification email
-    await sendOtpEmail(email, otp, 'register');
+    // Send verification email (non-blocking — don't hang registration if SMTP fails)
+    sendOtpEmail(email, otp, 'register').catch(e =>
+      console.error('[AUTH] OTP email failed (non-fatal):', e.message)
+    );
 
     res.status(201).json({ 
       success: true,
@@ -74,6 +76,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
     });
   } catch (err) { next(err); }
 });
+
 
 // POST /api/auth/login
 router.post('/login', authLimiter, async (req, res, next) => {
