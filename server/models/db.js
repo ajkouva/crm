@@ -248,11 +248,15 @@ async function initDB() {
   await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`);
   await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`);
 
-  // Add rating columns
+  // Add rating columns (rating_feedback is the correct column name used in routes)
   await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS rating SMALLINT;`);
   await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS rating_comment TEXT;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS rating_feedback TEXT;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS rated_at TIMESTAMPTZ;`);
   await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS appeal_reason TEXT;`);
   await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS resolution_notes TEXT;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS is_appealed BOOLEAN DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE complaints ADD COLUMN IF NOT EXISTS appealed_at TIMESTAMPTZ;`);
 
   // Add email_verified / reset token for users
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(10);`);

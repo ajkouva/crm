@@ -80,7 +80,7 @@ router.get('/overview', authMiddleware, async (req, res, next) => {
       avgResolutionHours: Math.round(avgRes.rows[0].avg_h || 0),
     };
 
-    if (req.user.role === 'field_officer' && req.user.departmentId) {
+    if (['field_officer', 'dept_head'].includes(req.user.role) && req.user.departmentId) {
       const dBase = `FROM complaints WHERE department_id = $1`;
       const [dT, dR, dP] = await Promise.all([
         query(`SELECT COUNT(*) ${dBase}`, [req.user.departmentId]),
@@ -109,7 +109,7 @@ router.get('/trends', authMiddleware, async (req, res, next) => {
         COUNT(c.id) FILTER (WHERE DATE_TRUNC('day', c.created_at) = gs.day)  AS received,
         COUNT(c.id) FILTER (WHERE DATE_TRUNC('day', c.resolved_at) = gs.day) AS resolved
       FROM GENERATE_SERIES(NOW()::date - 29, NOW()::date, '1 day'::interval) AS gs(day)
-      LEFT JOIN complaints c ON 1=1 ${clause}
+      LEFT JOIN complaints c ON (1=1 ${clause.replace(/^AND /, 'AND c.')})
       GROUP BY gs.day ORDER BY gs.day
     `, params);
     res.json(rows);

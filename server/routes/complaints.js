@@ -11,7 +11,7 @@ const multer = require('multer');
 const path = require('path');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads/')),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`);
@@ -222,7 +222,7 @@ router.post('/', authMiddleware, upload.array('media', 4), async (req, res, next
     const topCat         = classification.categories[0];
     const finalPriority  = classification.isUrgent ? 'P1' : priority;
     const cat            = category || topCat?.department || 'General';
-    const deptId         = DEPT_TO_ID[topCat?.department] || 'd7';
+    const deptId         = DEPT_TO_ID[topCat?.department] || null;
     const slaDeadline    = getSLADeadline(finalPriority);
     const tid            = ticketId();
 
@@ -364,12 +364,15 @@ router.put('/:id/assign', authMiddleware, requireRole('dept_head','collector','s
     if (complaint.assigned_to && complaint.assigned_to !== officerId) {
       await decrementOfficerLoad(complaint.assigned_to);
     }
-    await query(`
-      INSERT INTO officer_load (officer_id, active_count, last_assigned)
-      VALUES ($1, 1, NOW())
-      ON CONFLICT (officer_id) DO UPDATE
-        SET active_count = officer_load.active_count + 1, last_assigned = NOW()
-    `, [officerId]);
+    // Only increment new officer load if complaint is still active
+    if (!['resolved', 'closed'].includes(complaint.status)) {
+      await query(`
+        INSERT INTO officer_load (officer_id, active_count, last_assigned)
+        VALUES ($1, 1, NOW())
+        ON CONFLICT (officer_id) DO UPDATE
+          SET active_count = officer_load.active_count + 1, last_assigned = NOW()
+      `, [officerId]);
+    }
 
     const { rows: [updated] } = await query(`
       UPDATE complaints 
