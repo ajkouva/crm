@@ -1,15 +1,15 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 async function sendOtpEmail(toEmail, otpCode, type = 'reset') {
-  // Always log OTP to console as fallback (visible in Railway logs)
+  // Always log OTP to console as fallback (visible in Railway/local logs)
   console.log(`[OTP] ${type.toUpperCase()} code for ${toEmail}: ${otpCode}`);
 
   if (!process.env.RESEND_API_KEY) {
     console.log('[Email Mock] RESEND_API_KEY not set — OTP logged above only.');
     return;
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const isRegister = type === 'register';
   const subject    = isRegister ? 'Verify Your PS-CRM Account' : 'Reset Your PS-CRM Password';
