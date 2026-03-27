@@ -51,7 +51,7 @@ async function seed() {
   await query(`
     INSERT INTO officer_load (officer_id, active_count)
     SELECT id, 0 FROM users WHERE role = 'field_officer'
-    ON CONFLICT DO NOTHING
+    ON CONFLICT DO NOTHING  
   `);
 
   // ── Demo complaints ────────────────────────────────────────────────────────
