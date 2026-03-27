@@ -1,41 +1,28 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// Use env variables. If missing, this will fail gracefully or just alert during send
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: parseInt(process.env.EMAIL_PORT) === 465, // true for 465, false for 587 (STARTTLS)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: { 
-    rejectUnauthorized: false
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendOtpEmail(toEmail, otpCode, type = 'reset') {
-  // In development, if no email creds exist, just log it.
-  if (!process.env.EMAIL_USER) {
-    console.log(`[Email Mock] Would send ${type} OTP ${otpCode} to ${toEmail}`);
+  // Always log OTP to console as fallback (visible in Railway logs)
+  console.log(`[OTP] ${type.toUpperCase()} code for ${toEmail}: ${otpCode}`);
+
+  if (!process.env.RESEND_API_KEY) {
+    console.log('[Email Mock] RESEND_API_KEY not set — OTP logged above only.');
     return;
   }
 
   const isRegister = type === 'register';
   const subject    = isRegister ? 'Verify Your PS-CRM Account' : 'Reset Your PS-CRM Password';
   const title      = isRegister ? 'Verify Your Email' : 'Reset Your Password';
-  const message    = isRegister 
+  const message    = isRegister
     ? 'Welcome to PS-CRM! Please use the following 6-digit code to verify your account:'
     : 'We received a request to reset your password. Here is your 6-digit OTP:';
 
-  // Always log OTP to server console (visible in Railway logs as fallback)
-  console.log(`[OTP] ${type.toUpperCase()} code for ${toEmail}: ${otpCode}`);
-
   try {
-    const mailOptions = {
-      from: `"PS-CRM Admin" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
-      subject: subject,
+    await resend.emails.send({
+      from: 'PS-CRM <onboarding@resend.dev>',
+      to: [toEmail],
+      subject,
       html: `
         <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
           <h2 style="color: #1e3a8a;">${title}</h2>
@@ -47,10 +34,8 @@ async function sendOtpEmail(toEmail, otpCode, type = 'reset') {
           <p style="color: #94a3b8; font-size: 12px; text-align: center;">Smart Public Service CRM • Government of India Initiative</p>
         </div>
       `
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`[Email] ${type} OTP sent to ${toEmail}`);
+    });
+    console.log(`[Email] ${type} OTP sent to ${toEmail} via Resend`);
   } catch (error) {
     console.error('[Email Error]', error.message);
   }
