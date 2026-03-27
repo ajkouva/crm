@@ -212,6 +212,10 @@ END $$;
 
 async function initDB() {
   console.log('[DB] Running schema bootstrap…');
+  
+  // Ensure extensions are enabled
+  await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`);
+
   // departments must exist before users can reference it
   await pool.query(`CREATE TABLE IF NOT EXISTS departments (
     id   VARCHAR(10) PRIMARY KEY,
