@@ -1,4 +1,7 @@
 require('dotenv').config();
+// DIAGNOSTIC: Confirm env vars are loaded
+console.log('[BOOT] DATABASE_URL set:', !!process.env.DATABASE_URL);
+console.log('[BOOT] DB Host:', process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'MISSING');
 const express = require('express');
 const http    = require('http');
 const { Server } = require('socket.io');
