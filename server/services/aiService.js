@@ -1,6 +1,14 @@
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// --- Configuration ---
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434/api/generate';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
 const AI_TIMEOUT_MS = 20000;
+
+// Initialize Gemini if key is present
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: "gemini-1.5-flash" }) : null;
 
 const DEPARTMENTS = [
   'Water Supply', 'Roads & Infrastructure', 'Sanitation',
@@ -104,6 +112,32 @@ function withTimeout(promise, ms, fallback) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+// ── Models Integration ────────────────────────────────────────
+
+const cleanJSON = (str) => {
+  let cleaned = str.trim();
+  if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json\n/, '');
+  if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```\n?/, '');
+  if (cleaned.endsWith('```')) cleaned = cleaned.replace(/\n?```$/, '');
+  return cleaned;
+};
+
+async function fetchGemini(prompt, jsonMode = false) {
+  if (!geminiModel) return null;
+  
+  try {
+    const result = await geminiModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: jsonMode ? { responseMimeType: "application/json" } : {}
+    });
+    const response = result.response;
+    return response.text();
+  } catch (err) {
+    console.warn(`[AI-Gemini] API failure:`, err.message);
+    return null;
+  }
+}
+
 async function fetchOllama(prompt, jsonMode = false) {
   try {
     const response = await fetch(OLLAMA_URL, {
@@ -124,6 +158,20 @@ async function fetchOllama(prompt, jsonMode = false) {
     return null;
   }
 }
+
+// Main generation wrapper that falls back if Gemini fails
+async function fetchAI(prompt, jsonMode = false) {
+  // Try Gemini first
+  let res = await fetchGemini(prompt, jsonMode);
+  if (res) return { text: res, method: 'gemini' };
+
+  // Fallback to Ollama
+  res = await fetchOllama(prompt, jsonMode);
+  if (res) return { text: res, method: 'ollama' };
+
+  return null;
+}
+
 
 // ── AI Classification ─────────────────────────────────────────────────────────
 async function classifyComplaint(text) {
@@ -181,10 +229,11 @@ Respond ONLY with valid JSON:
   };
 
   const aiCall = async () => {
-    const ollamaRaw = await fetchOllama(prompt, true);
-    if (ollamaRaw) {
+    const aiResult = await fetchAI(prompt, true);
+    
+    if (aiResult && aiResult.text) {
       try {
-        const parsed = JSON.parse(ollamaRaw.trim());
+        const parsed = JSON.parse(cleanJSON(aiResult.text));
 
         // AI says it's gibberish
         if (parsed.isGibberish === true) {
@@ -194,7 +243,7 @@ Respond ONLY with valid JSON:
             isGibberish: true,
             summary: '',
             translatedDescription: text,
-            method: 'ollama-gibberish',
+            method: `${aiResult.method}-gibberish`,
             error: 'Your complaint description does not describe a real civic issue. Please be more specific.'
           };
         }
@@ -211,10 +260,10 @@ Respond ONLY with valid JSON:
           isUrgent: parsed.isUrgent || isUrgent,
           summary: parsed.summary || text.slice(0, 100),
           translatedDescription: parsed.translatedDescription || text,
-          method: 'ollama'
+          method: aiResult.method
         };
       } catch (e) {
-        console.error(`[AI-Local] Ollama Parse Error:`, e.message);
+        console.error(`[AI] JSON Parse Error for ${aiResult.method}:`, e.message, '\nRaw Output:', aiResult.text);
       }
     }
     return fallback;
@@ -233,8 +282,8 @@ Complaint: "${complaint.description.slice(0, 1000)}"
 Return only the summary sentence without quotation marks.`;
 
   const aiCall = async () => {
-    const ollamaSummary = await fetchOllama(prompt);
-    if (ollamaSummary) return ollamaSummary.trim().replace(/^"|"$/g, '');
+    const aiResult = await fetchAI(prompt);
+    if (aiResult && aiResult.text) return aiResult.text.trim().replace(/^"|"$/g, '');
     return complaint.description.slice(0, 120);
   };
 
@@ -258,9 +307,12 @@ ${list}
 Return ONLY the ID of the matching duplicate complaint, or "NULL" if no duplicate is found.`;
 
   const aiCall = async () => {
-    const ollamaId = await fetchOllama(prompt);
-    if (ollamaId && ollamaId.trim() !== 'NULL' && ollamaId.trim() !== 'null') {
-       return ollamaId.trim().match(/[0-9a-f-]{36}/i)?.[0] || 'NULL';
+    const aiResult = await fetchAI(prompt);
+    if (aiResult && aiResult.text) {
+      const match = aiResult.text.trim().replace(/^"|"$/g, '');
+      if (match !== 'NULL' && match.toLowerCase() !== 'null') {
+         return match.match(/[0-9a-f-]{36}/i)?.[0] || 'NULL';
+      }
     }
     return null;
   };
