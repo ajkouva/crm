@@ -25,8 +25,10 @@ export default function TransparencyDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [filter, setFilter] = useState('all');
 
+  const hostUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
+
   useEffect(() => {
-    fetch('http://localhost:3001/api/analytics/public/complaints')
+    fetch(`${hostUrl}/api/analytics/public/complaints`)
       .then(r => r.json())
       .then(setComplaints)
       .catch(() => {});
@@ -154,7 +156,7 @@ export default function TransparencyDashboard() {
                   {c.media_urls[0].match(/\.(mp4|mov)$/i) ? (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#fff', fontSize: '0.8rem' }}>Video Evidence Attached</div>
                   ) : (
-                    <img src={`http://localhost:3001${c.media_urls[0]}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Public Evidence" />
+                    <img src={`${hostUrl}${c.media_urls[0]}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Public Evidence" />
                   )}
                 </div>
               )}

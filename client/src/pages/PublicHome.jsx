@@ -34,7 +34,8 @@ export default function PublicHome() {
   }, [bgImages.length]);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/analytics/public/stats')
+    const hostUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
+    fetch(`${hostUrl}/api/analytics/public/stats`)
       .then(r => r.json()).then(setStats).catch(() => {});
   }, []);
 
