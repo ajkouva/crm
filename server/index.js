@@ -26,8 +26,18 @@ const app    = express();
 const server = http.createServer(app);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
-// Allow any origin in development to support mobile/LAN testing
-const corsOrigin = process.env.NODE_ENV === 'production' ? CLIENT_ORIGIN : true;
+// Normalize: strip trailing slashes, support comma-separated multiple origins
+const allowedOrigins = CLIENT_ORIGIN
+  .split(',')
+  .map(o => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+const corsOrigin = process.env.NODE_ENV === 'production'
+  ? (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      cb(new Error(`CORS: origin "${origin}" not allowed`));
+    }
+  : true;
 
 const io = new Server(server, { cors: { origin: corsOrigin, credentials: true } });
 
