@@ -30,3 +30,13 @@ function rateLimit({ windowMs = 60000, max = 300, message = 'Too many requests' 
 }
 
 module.exports = { rateLimit };
+
+// Cleanup old entries every 5 minutes to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, data] of limitMap.entries()) {
+    if (now > data.resetAt) {
+      limitMap.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000);

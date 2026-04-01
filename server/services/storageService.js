@@ -4,11 +4,14 @@ require('dotenv').config();
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
+let supabase = null;
+
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('[STORAGE] Minimum Supabase environment variables not found! File uploads will fail.');
+  console.error('[STORAGE] Minimum Supabase environment variables not found! File uploads will fail, but server will continue running.');
+} else {
+  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const BUCKET_NAME = 'complaints-media';
 
 /**
@@ -19,6 +22,10 @@ const BUCKET_NAME = 'complaints-media';
  * @returns {Promise<string>} The absolute public URL of the uploaded image
  */
 async function uploadMedia(buffer, originalName, mimetype) {
+  if (!supabase) {
+    console.error('[STORAGE] Attempted to upload, but Supabase is not configured.');
+    throw new Error('Storage service is not configured');
+  }
   try {
     const ext = originalName.split('.').pop() || 'jpg';
     const filePath = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;

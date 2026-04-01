@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'ps-crm-secret';
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'ps-crm-secret')) {
+  throw new Error('FATAL: JWT_SECRET is missing or insecure in production environment');
+}
 
 const ROLES = {
   CITIZEN:      'citizen',
@@ -23,7 +26,7 @@ function authMiddleware(req, res, next) {
   if (!token) return res.status(401).json({ error: 'No token provided' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
-    if (req.user.active === false && !['/api/auth/me', '/api/auth/logout'].includes(req.originalUrl)) {
+    if (req.user.active === false && !['/api/auth/me'].includes(req.originalUrl)) {
       return res.status(403).json({ error: 'Account pending admin approval' });
     }
     next();

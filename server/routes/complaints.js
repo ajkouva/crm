@@ -9,12 +9,20 @@ const { notifyComplaintCreated, notifyAssigned, notifyStatusChange } = require('
 const { rateLimit } = require('../middleware/rateLimiter');
 const multer = require('multer');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const { uploadMedia } = require('../services/storageService');
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB max
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images and videos are allowed.'));
+    }
+  }
 });
 
 const router = express.Router();
@@ -28,7 +36,7 @@ function san(str, max = 1000) {
 }
 
 function ticketId() {
-  return 'CMP-' + Date.now().toString(36).toUpperCase();
+  return 'CMP-' + uuidv4().slice(0, 8).toUpperCase();
 }
 
 // Attach computed slaStatus to a complaint row
@@ -38,7 +46,7 @@ function withSLA(c) {
 
 // Distance formula (Haversine)
 function getDistance(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return Infinity;
   const R = 6371e3; // metres
   const f1 = lat1 * Math.PI/180, f2 = lat2 * Math.PI/180;
   const df = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
@@ -135,13 +143,11 @@ router.get('/track/public/:ticketId', rateLimit({ windowMs: 15 * 60000, max: 20 
     const { rows: complaints } = await query(`
       SELECT c.id, c.ticket_id, c.status, c.priority, c.category, c.location, 
              c.created_at, c.resolved_at, c.resolved_media_urls,
-             c.rating, c.rating_feedback, c.rated_at,
-             c.is_appealed, c.appeal_reason, c.appealed_at,
-             d.name as department_name,
-             ou.name as officer_name
+             c.rating, c.rated_at,
+             c.is_appealed, c.appealed_at,
+             d.name as department_name
       FROM complaints c
       LEFT JOIN departments d ON d.id = c.department_id
-      LEFT JOIN users ou      ON ou.id = c.assigned_to
       WHERE c.ticket_id = $1
     `, [tid]);
 

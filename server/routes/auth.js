@@ -8,6 +8,9 @@ const { sendOtpEmail } = require('../utils/mailer');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'ps-crm-secret';
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'ps-crm-secret')) {
+  throw new Error('FATAL: JWT_SECRET is missing or insecure in production environment');
+}
 const EMAIL_RE   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const authLimiter = rateLimit({ windowMs: 15 * 60000, max: 100, message: 'Too many auth attempts. Try again later.' });

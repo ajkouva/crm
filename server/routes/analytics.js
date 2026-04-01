@@ -3,7 +3,10 @@ const { query } = require('../models/db');
 const { authMiddleware } = require('../middleware/auth');
 const { getSLAStatus } = require('../services/workflowService');
 
+const { rateLimit } = require('../middleware/rateLimiter');
 const router = express.Router();
+
+const publicLimiter = rateLimit({ windowMs: 15 * 60000, max: 50, message: 'Too many public metric requests' });
 
 function deptFilter(user) {
   if (user.role === 'field_officer') return { clause: 'AND assigned_to = $1', val: user.id };
@@ -12,7 +15,7 @@ function deptFilter(user) {
   return { clause: '', val: null };
 }
 
-router.get('/public/stats', async (req, res, next) => {
+router.get('/public/stats', publicLimiter, async (req, res, next) => {
   try {
     const { rows: stats } = await query(`
       SELECT 
@@ -30,7 +33,7 @@ router.get('/public/stats', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.get('/public/complaints', async (req, res, next) => {
+router.get('/public/complaints', publicLimiter, async (req, res, next) => {
   try {
     const { rows } = await query(`
       SELECT 
@@ -53,15 +56,15 @@ router.get('/overview', authMiddleware, async (req, res, next) => {
     const { clause, val } = deptFilter(req.user);
     const params = val ? [val] : [];
 
-    const base = `FROM complaints WHERE 1=1 ${clause}`;
+    const whereClause = `WHERE 1=1 ${clause}`;
     const [total, resolved, escalated, todayRec, todayRes, slaData, avgRes] = await Promise.all([
-      query(`SELECT COUNT(*) ${base}`, params),
-      query(`SELECT COUNT(*) ${base} AND status IN ('resolved','closed')`, params),
-      query(`SELECT COUNT(*) ${base} AND status = 'escalated'`, params),
-      query(`SELECT COUNT(*) ${base} AND created_at >= NOW()::date`, params),
-      query(`SELECT COUNT(*) ${base} AND resolved_at >= NOW()::date`, params),
-      query(`SELECT COUNT(*) ${base} AND status NOT IN ('resolved','closed') AND sla_deadline < NOW()`, params),
-      query(`SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at))/3600) AS avg_h ${base} AND resolved_at IS NOT NULL`, params),
+      query(`SELECT COUNT(*) FROM complaints ${whereClause}`, params),
+      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND status IN ('resolved','closed')`, params),
+      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND status = 'escalated'`, params),
+      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND created_at >= NOW()::date`, params),
+      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND resolved_at >= NOW()::date`, params),
+      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND status NOT IN ('resolved','closed') AND sla_deadline < NOW()`, params),
+      query(`SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at))/3600) AS avg_h FROM complaints ${whereClause} AND resolved_at IS NOT NULL`, params),
     ]);
 
     const pending = parseInt(total.rows[0].count) - parseInt(resolved.rows[0].count);
