@@ -230,54 +230,65 @@ router.post('/', authMiddleware, upload.array('media', 4), async (req, res, next
     const aiSummary = classification.summary || '';
     const aiTranslation = classification.translatedDescription || '';
 
-    // AI Geospatial Duplicate Detection
-    let parentId = null;
+    // ── Geospatial Duplicate Detection (100m radius) ─────────────────────────
+    // Run BEFORE the INSERT — if a duplicate is found, reject the request entirely.
     if (lat && lng) {
       const { rows: potentialDups } = await query(`
-        SELECT id, parent_id, title, description, lat, lng FROM complaints
-        WHERE category = $1 
+        SELECT id, parent_id, ticket_id, title, description, lat, lng FROM complaints
+        WHERE category = $1
           AND status IN ('new','assigned','in_progress','escalated')
           AND created_at > NOW() - INTERVAL '7 days'
       `, [cat]);
-      
-      const nearby = potentialDups.filter(d => getDistance(lat, lng, d.lat, d.lng) < 500);
-      
+
+      // Only check complaints within 100 metres
+      const nearby = potentialDups.filter(d => getDistance(parseFloat(lat), parseFloat(lng), d.lat, d.lng) < 100);
+
       if (nearby.length > 0) {
         const matchedId = await detectDuplicates({ title, description: aiTranslation || description }, nearby);
+
         if (matchedId) {
-          const match = nearby.find(d => d.id === matchedId);
-          parentId = match.parent_id || match.id;
+          const match   = nearby.find(d => d.id === matchedId);
+          const parentId = match.parent_id || match.id;
+
+          // Increment duplicate_count on the original complaint
+          const { rows: updatedParent } = await query(`
+            UPDATE complaints
+            SET duplicate_count = duplicate_count + 1
+            WHERE id = $1
+            RETURNING ticket_id, duplicate_count, priority
+          `, [parentId]);
+
+          // Auto-escalate to P1 when 3+ people report the same issue
+          const pdc = updatedParent[0];
+          if (pdc && pdc.duplicate_count >= 2 && pdc.priority !== 'P1') {
+            await query(`UPDATE complaints SET priority = 'P1' WHERE id = $1`, [parentId]);
+            await addStatusHistory(parentId, 'escalated', 'system',
+              'Auto-escalated to P1 due to multiple duplicate reports within 100 m.');
+          }
+
+          // Reject — DO NOT save to DB
+          return res.status(409).json({
+            error: 'A similar complaint has already been filed for this location.',
+            isDuplicate: true,
+            existingTicketId: pdc?.ticket_id || match.ticket_id,
+          });
         }
       }
     }
 
+    // ── No duplicate found — proceed with INSERT ─────────────────────────────
     const { rows } = await query(`
       INSERT INTO complaints
         (ticket_id, user_id, citizen_name, title, description, location, lat, lng,
-         category, department_id, priority, status, language, ai_classification, sla_deadline, media_urls, parent_id, ai_summary, translated_description)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new',$12,$13,$14,$15,$16,$17,$18)
+         category, department_id, priority, status, language, ai_classification, sla_deadline, media_urls, ai_summary, translated_description)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new',$12,$13,$14,$15,$16,$17)
       RETURNING *
-    `, [tid, req.user.id, req.user.name, title, description, location, lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+    `, [tid, req.user.id, req.user.name, title, description, location,
+        lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
         cat, deptId, finalPriority, language,
-        JSON.stringify(classification), slaDeadline, JSON.stringify(mediaUrls), parentId, aiSummary, aiTranslation]);
+        JSON.stringify(classification), slaDeadline, JSON.stringify(mediaUrls), aiSummary, aiTranslation]);
 
     const complaint = rows[0];
-
-    if (parentId) {
-      const { rows: updatedParent } = await query(`
-        UPDATE complaints 
-        SET duplicate_count = duplicate_count + 1 
-        WHERE id = $1
-        RETURNING duplicate_count, priority
-      `, [parentId]);
-
-      // Auto-escalation Logic: If duplicate count >= 2 (so 3 total complaints), auto-upgrade to P1
-      const pdc = updatedParent[0];
-      if (pdc && pdc.duplicate_count >= 2 && pdc.priority !== 'P1') {
-        await query(`UPDATE complaints SET priority = 'P1' WHERE id = $1`, [parentId]);
-        await addStatusHistory(parentId, 'escalated', 'system', 'Auto-escalated to Priority 1 (P1) due to high volume of duplicate reports.');
-      }
-    }
 
     await addStatusHistory(complaint.id, 'new', req.user.id, 'Complaint submitted');
     await notifyComplaintCreated(complaint);

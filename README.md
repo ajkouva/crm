@@ -1,6 +1,6 @@
 # 🇮🇳 PS-CRM — Smart Public Service Complaint Management System
 
-> A full-stack, production-ready complaint management platform for Indian government services — featuring real-time notifications, AI-powered classification, auto officer assignment, SLA enforcement, duplicate detection, and a premium animated UI.
+> A full-stack, production-ready complaint management platform for Indian government services — featuring real-time notifications, AI-powered classification, auto officer assignment, SLA enforcement, geospatial duplicate detection (100m radius), and a premium animated UI.
 
 ![Tech Stack](https://img.shields.io/badge/React_18_+_Vite-blue?logo=react) ![Node.js](https://img.shields.io/badge/Node.js_+_Express-green?logo=node.js) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql) ![GSAP](https://img.shields.io/badge/GSAP_Animations-88CE02?logo=greensock) ![Gemini AI](https://img.shields.io/badge/Gemini_AI-4285F4?logo=google)
 
@@ -11,7 +11,7 @@
 ### 👤 Citizen Features
 - **Complaint Filing** — Submit complaints with title, description, category, location (manual or GPS), and media uploads (photos/videos up to 50MB)
 - **Live Ticket Tracking** — Public tracking page with full status history
-- **OTP Email Verification** — Secure 6-digit code registration flow
+- **OTP Email Verification** — Secure 6-digit code registration flow with production bypass option
 - **Multilingual Support** — English + Hindi (i18n via react-i18next, 10+ Indian languages structured)
 - **Complaint Rating** — Rate resolution quality (1–5 stars + feedback)
 - **Appeal System** — Re-open resolved complaints if unsatisfied
@@ -31,8 +31,8 @@
 ### 🤖 AI Engine
 - **Gemini AI Classification** — Identifies department, urgency, and generates multilingual summaries
 - **Gibberish Detection** — Rejects low-quality or test inputs automatically
-- **AI Duplicate Detection** — Geospatial + semantic matching to prevent duplicate submissions
-- **Auto-Escalation** — P1 complaints with 3+ duplicates automatically escalate
+- **AI Duplicate Detection** — Geospatial (100m radius) + semantic matching; duplicates are **rejected before saving** — DB stays clean
+- **Auto-Escalation** — When 3+ citizens report the same issue within 100m, the original complaint auto-escalates to P1
 - **Fallback AI** — Keyword-based classification when Gemini is unavailable
 
 ### 🔔 Real-time System
@@ -42,7 +42,7 @@
 ### 🔒 Security
 - **JWT Authentication** — 7-day tokens, role-based route guards
 - **bcrypt Password Hashing** — 12 rounds
-- **Email OTP Registration** — Prevents fake accounts
+- **Email OTP Registration** — Prevents fake accounts (with env-gated bypass for production emergencies)
 - **Rate Limiting** — Protects API endpoints from abuse
 - **Input Sanitization** — All user input sanitized server-side
 - **CORS** — Configurable per environment
@@ -76,7 +76,7 @@
 | **Database** | PostgreSQL (pg Pool) |
 | **Auth** | JWT + bcrypt |
 | **Email** | Nodemailer (Gmail SMTP / STARTTLS) |
-| **AI** | Google Gemini API + Ollama/Llama3.2 fallback |
+| **AI** | Google Gemini API + keyword fallback |
 | **Cron** | node-cron |
 | **File Uploads** | Multer |
 | **Realtime** | Socket.io Server |
@@ -88,15 +88,15 @@
 ```
 ps-crm/
 ├── client/                         # React frontend (Vite)
-│   ├── public/                     # Hero images (img1.jpeg … img5.jpeg, mobile1-4.jpeg)
+│   ├── public/                     # Hero images
 │   └── src/
-│       ├── pages/                  # All route pages
+│       ├── pages/
 │       │   ├── PublicHome.jsx      # Landing page with GSAP animations
-│       │   ├── AuthPage.jsx        # Login / Register / OTP / Forgot Password
+│       │   ├── AuthPage.jsx        # Login / Register / OTP / Skip Verify / Forgot Password
 │       │   ├── Dashboard.jsx       # Role-aware main dashboard
 │       │   ├── ComplaintsList.jsx  # Filterable complaints table
 │       │   ├── ComplaintDetail.jsx # Full complaint + history + rating + appeal
-│       │   ├── SubmitComplaint.jsx # AI-powered complaint submission form
+│       │   ├── SubmitComplaint.jsx # AI-powered 3-step submission + duplicate banner
 │       │   ├── Analytics.jsx       # Charts + heatmap
 │       │   ├── AdminControls.jsx   # User/dept management
 │       │   ├── Notifications.jsx   # Notification center
@@ -112,20 +112,17 @@ ps-crm/
 │       │   ├── Skeleton.jsx        # Content skeleton loaders
 │       │   ├── HeatmapWidget.jsx   # Leaflet heatmap
 │       │   └── Icons.jsx           # SVG icon library
-│       ├── context/
-│       │   ├── AuthContext.jsx     # Auth state (used by crm component)
-│       │   └── ThemeContext.jsx    # Light/Dark mode
 │       ├── store/
 │       │   └── useAuthStore.js     # Zustand auth store
-│       ├── utils/api.js            # API fetch wrapper
+│       ├── utils/api.js            # API fetch wrapper (includes skipVerification)
 │       └── i18n.js                 # i18next config
 │
 └── server/                         # Express backend
     ├── index.js                    # App entry, Socket.io, cron init
-    ├── models/db.js                # pg Pool + schema bootstrap (initDB)
+    ├── models/db.js                # pg Pool + schema bootstrap
     ├── routes/
-    │   ├── auth.js                 # Register, Login, OTP verify, Forgot PW
-    │   ├── complaints.js           # Full CRUD + assign + rate + appeal
+    │   ├── auth.js                 # Register, Login, OTP verify, Skip-verify, Forgot PW
+    │   ├── complaints.js           # Full CRUD + duplicate guard + assign + rate + appeal
     │   ├── analytics.js            # Charts + public stats
     │   └── misc.js                 # Departments, notifications, uploads
     ├── services/
@@ -155,10 +152,7 @@ ps-crm/
 git clone https://github.com/your-username/ps-crm.git
 cd ps-crm
 
-# Install server deps
 cd server && npm install
-
-# Install client deps
 cd ../client && npm install
 ```
 
@@ -201,6 +195,49 @@ API: http://localhost:3001
 | head.water@pscrm.in | Dept Head (Water) |
 | ravi@water.in | Field Officer (Water) |
 | rahul@example.com | Citizen |
+
+---
+
+## ⚙️ Production Environment Variables
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | 64-char random string for JWT signing |
+| `GEMINI_API_KEY` | Google Gemini API key for AI features |
+| `EMAIL_USER` | Gmail address for OTP emails |
+| `EMAIL_PASS` | Gmail App Password |
+| `CLIENT_ORIGIN` | Frontend domain for CORS |
+| `NODE_ENV` | Set to `production` |
+| `SKIP_OTP_CITIZEN` | **`true`** to enable OTP bypass for citizens (use if email delivery is broken) |
+
+### OTP Bypass (Production Emergency)
+
+If email delivery is not working and citizens cannot verify their accounts, set:
+
+```env
+SKIP_OTP_CITIZEN=true
+```
+
+This enables a **"Skip Verification →"** button on the registration OTP screen. Citizens can activate their account without the code. The bypass:
+- ✅ Only works for `citizen` role — officers still require proper verification
+- ✅ Is **fully server-side gated** — removing the env var instantly disables it
+- ✅ Logs every bypass usage to the server console
+
+---
+
+## 🔍 Duplicate Detection Logic
+
+When a citizen submits a complaint with GPS coordinates:
+
+1. The system queries active complaints in the **same category** from the **last 7 days**
+2. It filters to those within **100 metres** (Haversine formula)
+3. If nearby complaints are found, **Gemini AI** semantically compares the descriptions
+4. If a match is confirmed:
+   - The new complaint is **rejected** — nothing is saved to the DB
+   - The original complaint's `duplicate_count` is incremented
+   - If `duplicate_count >= 2` (3+ people reported the same issue), the original is **auto-escalated to P1**
+   - The citizen sees a banner with the existing ticket ID and a direct Track link
 
 ---
 

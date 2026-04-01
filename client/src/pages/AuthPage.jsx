@@ -109,6 +109,23 @@ export default function AuthPage() {
     } finally { setVerifyLoading(false); }
   };
 
+  const skipVerify = async () => {
+    setVerifyError(''); setVerifyLoading(true);
+    try {
+      await api.skipVerification(verifyEmail);
+      setVerifySuccess('Account activated! You can now log in.');
+      setTimeout(() => {
+        setVerifyMode(false);
+        setMode('login');
+        setVerifySuccess('');
+        setVerifyEmail('');
+        setVerifyOtp('');
+      }, 2500);
+    } catch (err) {
+      setVerifyError(err.message || 'OTP bypass is not available. Please contact support.');
+    } finally { setVerifyLoading(false); }
+  };
+
   const needsDept = ['field_officer', 'dept_head'].includes(form.role);
 
   // Step 1: send OTP
@@ -494,6 +511,36 @@ export default function AuthPage() {
                   <button className="btn btn-primary" type="submit" disabled={verifyLoading} style={{ width: '100%', height: '52px', justifyContent: 'center', marginTop: '12px', background: 'var(--saffron)', color: 'var(--navy)', fontWeight: 800, fontSize: '1.05rem', borderRadius: '12px', border: 'none', boxShadow: '0 4px 15px rgba(255,153,51,0.3)' }}>
                     {verifyLoading ? 'Verifying...' : 'Verify & Activate Account'}
                   </button>
+
+                  {/* OTP not received? Skip option (requires SKIP_OTP_CITIZEN=true on server) */}
+                  <button
+                    type="button"
+                    onClick={skipVerify}
+                    disabled={verifyLoading}
+                    style={{
+                      width: '100%', height: '44px', marginTop: '4px',
+                      background: 'rgba(255,153,51,0.08)', color: 'var(--saffron)',
+                      border: '1px solid rgba(255,153,51,0.3)', borderRadius: '12px',
+                      cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,153,51,0.15)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,153,51,0.08)'}
+                  >
+                    {verifyLoading ? '...' : "Didn't receive code? Skip Verification →"}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-mist)' }}>Or </span>
+                    <button
+                      type="button"
+                      onClick={() => { api.resendVerification(verifyEmail).catch(() => {}); setVerifyError(''); setVerifySuccess('New code sent! Check your inbox.'); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--saffron)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}
+                    >
+                      resend the code
+                    </button>
+                  </div>
+
                   <button type="button" onClick={() => setVerifyMode(false)} style={{ background: 'none', border: 'none', color: 'var(--text-mist)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
                     Cancel
                   </button>

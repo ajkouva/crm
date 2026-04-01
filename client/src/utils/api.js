@@ -5,7 +5,8 @@
  * PostgreSQL snake_case to camelCase so every page component works unchanged.
  */
 
-const BASE = `${(import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '')}/api`;
+const rawBase = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const BASE = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
 
 export function getToken()     { return localStorage.getItem('pscrm_token'); }
 export function setToken(t)    { localStorage.setItem('pscrm_token', t); }
@@ -68,6 +69,7 @@ export const api = {
   resetPassword:  (email, otp, password) => req('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, otp, password }) }),
   verifyEmail:    (email, otp) => req('/auth/verify-email', { method: 'POST', body: JSON.stringify({ email, otp }) }),
   resendVerification: (email)  => req('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
+  skipVerification:   (email)  => req('/auth/skip-verification',  { method: 'POST', body: JSON.stringify({ email }) }),
 
   // Complaints
   analyzeComplaint: desc => req('/complaints/analyze', { method: 'POST', body: JSON.stringify({ description: desc }) }),

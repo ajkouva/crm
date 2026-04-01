@@ -144,8 +144,10 @@ export default function SubmitComplaint() {
     }
   };
 
+  const [duplicateInfo, setDuplicateInfo] = useState(null); // { existingTicketId }
+
   const handleSubmit = async () => {
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setDuplicateInfo(null);
     try {
       const fd = new FormData();
       fd.append('title', form.title);
@@ -160,8 +162,12 @@ export default function SubmitComplaint() {
       const res = await api.createComplaint(fd);
       navigate(`/complaints/${res.id}?submitted=1`);
     } catch (e) {
-      const msg = e.response?.data?.error || e.message;
-      setError(msg);
+      const data  = e.response?.data || {};
+      if (data.isDuplicate) {
+        setDuplicateInfo({ existingTicketId: data.existingTicketId });
+      } else {
+        setError(data.error || e.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -193,6 +199,55 @@ export default function SubmitComplaint() {
 
           <div className="card" style={{ padding: '24px' }}>
             {error && <div style={{ ...s.error, marginBottom: '20px' }}>{error}</div>}
+
+            {/* Duplicate complaint notice */}
+            {duplicateInfo && (
+              <div style={{
+                background: 'rgba(255,153,51,0.08)',
+                border: '1px solid rgba(255,153,51,0.4)',
+                borderRadius: 'var(--radius)',
+                padding: '16px 18px',
+                marginBottom: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--saffron)', fontSize: '0.95rem' }}>
+                      Duplicate Complaint Detected
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                      A similar issue at this location has already been reported within the last 7 days.
+                      Your concern has been noted and the original complaint has been flagged for priority review.
+                    </div>
+                  </div>
+                </div>
+                {duplicateInfo.existingTicketId && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-mist)', fontWeight: 600 }}>Existing ticket:</span>
+                    <span style={{
+                      fontFamily: 'monospace', fontWeight: 700, fontSize: '0.9rem',
+                      color: 'var(--saffron)', background: 'rgba(255,153,51,0.12)',
+                      padding: '2px 10px', borderRadius: '6px'
+                    }}>
+                      {duplicateInfo.existingTicketId}
+                    </span>
+                    <button
+                      onClick={() => navigate(`/track?id=${duplicateInfo.existingTicketId}`)}
+                      style={{
+                        background: 'var(--saffron)', color: 'var(--navy)',
+                        border: 'none', borderRadius: '8px', padding: '4px 14px',
+                        fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
+                      }}
+                    >
+                      Track →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {step === 0 && (
               <div style={s.form} className="fade-up">

@@ -180,6 +180,38 @@ router.get('/users', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/auth/skip-verification (citizen OTP bypass — only when SKIP_OTP_CITIZEN=true)
+router.post('/skip-verification', authLimiter, async (req, res, next) => {
+  try {
+    if (process.env.SKIP_OTP_CITIZEN !== 'true') {
+      return res.status(403).json({ error: 'OTP bypass is not enabled' });
+    }
+
+    const email = (req.body.email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Valid email required' });
+
+    const { rows } = await query(
+      `SELECT id, role, email_verified FROM users WHERE email = $1`, [email]
+    );
+    const user = rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.email_verified) return res.status(400).json({ error: 'Email already verified' });
+
+    // Only citizens can skip OTP — officers still need manual approval
+    if (user.role !== 'citizen') {
+      return res.status(403).json({ error: 'Only citizen accounts can use OTP bypass' });
+    }
+
+    await query(
+      `UPDATE users SET email_verified = TRUE, active = TRUE, reset_token = NULL, reset_token_expires = NULL WHERE id = $1`,
+      [user.id]
+    );
+
+    console.log(`[AUTH] OTP bypass used for citizen: ${email}`);
+    res.json({ success: true, message: 'Account activated. You can now log in.' });
+  } catch (err) { next(err); }
+});
+
 // POST /api/auth/resend-verification
 router.post('/resend-verification', authLimiter, async (req, res, next) => {
   try {
