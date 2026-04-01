@@ -279,7 +279,7 @@ export default function TrackComplaint() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
                   {complaint.resolvedMediaUrls.map((url, idx) => {
-                    const host = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
+                    const host = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '').replace(/\/api$/, '');
                     return <img key={idx} src={`${host}${url}`} alt="Resolution" style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '2px solid rgba(34,197,94,0.3)' }} />;
                   })}
                 </div>

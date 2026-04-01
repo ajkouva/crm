@@ -25,7 +25,7 @@ export default function TransparencyDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [filter, setFilter] = useState('all');
 
-  const hostUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
+  const hostUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '').replace(/\/api$/, '');
 
   useEffect(() => {
     fetch(`${hostUrl}/api/analytics/public/complaints`)
