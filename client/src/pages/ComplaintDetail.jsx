@@ -500,7 +500,7 @@ export default function ComplaintDetail() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
                     {complaint.resolvedMediaUrls.map((url, i) => {
                       const hostUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '').replace(/\/api$/, '');
-                      const fullUrl = `${hostUrl}${url}`;
+                      const fullUrl = url.startsWith('http') ? url : `${hostUrl}${url}`;
                       return (
                         <a key={i} href={fullUrl} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: 'var(--radius)', overflow: 'hidden', border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                           <img src={fullUrl} alt="Resolution" style={{ width: '100%', height: '100px', objectFit: 'cover' }} />
@@ -518,7 +518,7 @@ export default function ComplaintDetail() {
                     {complaint.mediaUrls.map((url, i) => {
                       const isVideo = url.match(/\.(mp4|mov)$/i);
                       const hostUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '').replace(/\/api$/, '');
-                      const fullUrl = `${hostUrl}${url}`;
+                      const fullUrl = url.startsWith('http') ? url : `${hostUrl}${url}`;
                       
                       return (
                         <a key={i} href={fullUrl} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--fog)', textDecoration: 'none' }}>

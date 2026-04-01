@@ -156,7 +156,7 @@ export default function TransparencyDashboard() {
                   {c.media_urls[0].match(/\.(mp4|mov)$/i) ? (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#fff', fontSize: '0.8rem' }}>Video Evidence Attached</div>
                   ) : (
-                    <img src={`${hostUrl}${c.media_urls[0]}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Public Evidence" />
+                    <img src={c.media_urls[0].startsWith('http') ? c.media_urls[0] : `${hostUrl}${c.media_urls[0]}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Public Evidence" />
                   )}
                 </div>
               )}

@@ -9,14 +9,9 @@ const { notifyComplaintCreated, notifyAssigned, notifyStatusChange } = require('
 const { rateLimit } = require('../middleware/rateLimiter');
 const multer = require('multer');
 const path = require('path');
+const { uploadMedia } = require('../services/storageService');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads/')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`);
-  }
-});
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB max
@@ -208,7 +203,11 @@ router.post('/', authMiddleware, upload.array('media', 4), async (req, res, next
     if (!VALID_PRIORITIES.includes(priority)) priority = 'P2';
     if (!VALID_LANGUAGES.includes(language))  language  = 'en';
 
-    const mediaUrls = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
+    let mediaUrls = [];
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map(f => uploadMedia(f.buffer, f.originalname, f.mimetype));
+      mediaUrls = await Promise.all(uploadPromises);
+    }
 
     const classification = await classifyComplaint(description);
     
@@ -331,7 +330,9 @@ router.put('/:id/status', authMiddleware, upload.array('media', 5), auditLog('co
     if (status === 'resolved') {
       extra.resolved_at = new Date();
       if (req.files && req.files.length > 0) {
-        extra.resolved_media_urls = JSON.stringify(req.files.map(f => `/uploads/${f.filename}`));
+        const uploadPromises = req.files.map(f => uploadMedia(f.buffer, f.originalname, f.mimetype));
+        const urls = await Promise.all(uploadPromises);
+        extra.resolved_media_urls = JSON.stringify(urls);
       }
     }
     if (status === 'escalated') extra.escalated_at = new Date();
