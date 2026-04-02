@@ -55,51 +55,59 @@ router.get('/overview', authMiddleware, async (req, res, next) => {
   try {
     const { clause, val } = deptFilter(req.user);
     const params = val ? [val] : [];
-
     const whereClause = `WHERE 1=1 ${clause}`;
-    const [total, resolved, escalated, todayRec, todayRes, slaData, avgRes] = await Promise.all([
-      query(`SELECT COUNT(*) FROM complaints ${whereClause}`, params),
-      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND status IN ('resolved','closed')`, params),
-      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND status = 'escalated'`, params),
-      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND created_at >= NOW()::date`, params),
-      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND resolved_at >= NOW()::date`, params),
-      query(`SELECT COUNT(*) FROM complaints ${whereClause} AND status NOT IN ('resolved','closed') AND sla_deadline < NOW()`, params),
-      query(`SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at))/3600) AS avg_h FROM complaints ${whereClause} AND resolved_at IS NOT NULL`, params),
-    ]);
 
-    const pending = parseInt(total.rows[0].count) - parseInt(resolved.rows[0].count);
-    const breach  = parseInt(slaData.rows[0].count);
-    const slaCompliance = pending > 0 ? Math.round(((pending - breach) / pending) * 100) : 100;
+    // Single query replaces 7 separate roundtrips
+    const { rows: [s] } = await query(`
+      SELECT
+        COUNT(*)                                                                        AS total,
+        COUNT(*) FILTER (WHERE status IN ('resolved','closed'))                         AS resolved,
+        COUNT(*) FILTER (WHERE status = 'escalated')                                   AS escalated,
+        COUNT(*) FILTER (WHERE created_at >= NOW()::date)                              AS today_received,
+        COUNT(*) FILTER (WHERE resolved_at >= NOW()::date)                             AS today_resolved,
+        COUNT(*) FILTER (WHERE status NOT IN ('resolved','closed') AND sla_deadline < NOW()) AS sla_breach,
+        AVG(EXTRACT(EPOCH FROM (resolved_at - created_at))/3600)
+          FILTER (WHERE resolved_at IS NOT NULL)                                        AS avg_h
+      FROM complaints ${whereClause}
+    `, params);
+
+    const total   = parseInt(s.total);
+    const resolved = parseInt(s.resolved);
+    const breach   = parseInt(s.sla_breach);
+    const pending  = total - resolved;
 
     const result = {
-      total:              parseInt(total.rows[0].count),
-      resolved:           parseInt(resolved.rows[0].count),
-      escalated:          parseInt(escalated.rows[0].count),
+      total,
+      resolved,
+      escalated:          parseInt(s.escalated),
       pending,
-      todayReceived:      parseInt(todayRec.rows[0].count),
-      todayResolved:      parseInt(todayRes.rows[0].count),
-      slaCompliance,
+      todayReceived:      parseInt(s.today_received),
+      todayResolved:      parseInt(s.today_resolved),
+      slaCompliance:      pending > 0 ? Math.round(((pending - breach) / pending) * 100) : 100,
       slaBreach:          breach,
-      avgResolutionHours: Math.round(avgRes.rows[0].avg_h || 0),
+      avgResolutionHours: Math.round(parseFloat(s.avg_h) || 0),
     };
 
+    // Dept stats: collapsed into 1 query
     if (['field_officer', 'dept_head'].includes(req.user.role) && req.user.departmentId) {
-      const dBase = `FROM complaints WHERE department_id = $1`;
-      const [dT, dR, dP] = await Promise.all([
-        query(`SELECT COUNT(*) ${dBase}`, [req.user.departmentId]),
-        query(`SELECT COUNT(*) ${dBase} AND status IN ('resolved','closed')`, [req.user.departmentId]),
-        query(`SELECT COUNT(*) ${dBase} AND status = 'escalated'`, [req.user.departmentId]),
-      ]);
+      const { rows: [d] } = await query(`
+        SELECT
+          COUNT(*)                                                  AS total,
+          COUNT(*) FILTER (WHERE status IN ('resolved','closed'))   AS resolved,
+          COUNT(*) FILTER (WHERE status = 'escalated')             AS escalated
+        FROM complaints WHERE department_id = $1
+      `, [req.user.departmentId]);
       result.deptStats = {
-        total:    parseInt(dT.rows[0].count),
-        resolved: parseInt(dR.rows[0].count),
-        escalated: parseInt(dP.rows[0].count),
+        total:     parseInt(d.total),
+        resolved:  parseInt(d.resolved),
+        escalated: parseInt(d.escalated),
       };
     }
 
     res.json(result);
   } catch (err) { next(err); }
 });
+
 
 router.get('/trends', authMiddleware, async (req, res, next) => {
   try {
