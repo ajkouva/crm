@@ -9,7 +9,6 @@ const { notifyComplaintCreated, notifyAssigned, notifyStatusChange } = require('
 const { rateLimit } = require('../middleware/rateLimiter');
 const multer = require('multer');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 const { uploadMedia } = require('../services/storageService');
 
 const storage = multer.memoryStorage();
