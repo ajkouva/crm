@@ -10,9 +10,15 @@ build/
 .env.*
 !.env.example
 
-# ── Uploaded media (user-submitted files) ────────────────────────────────────
+# ── Uploaded media (user-submitted files) ─────────────────────────────────────
 server/uploads/*
 !server/uploads/.gitkeep
+
+# ── Dev-only server scripts (not needed in production/Railway) ────────────────
+server/seed.js
+server/flush.js
+server/migrate_evidence.js
+server/fix_users.js
 
 # ── OS & Editor junk ──────────────────────────────────────────────────────────
 .DS_Store
@@ -49,5 +55,4 @@ client/.vite/
 skills-lock.json
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
-*.pem
 *.local
